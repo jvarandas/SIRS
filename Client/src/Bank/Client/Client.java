@@ -17,7 +17,9 @@ public class Client {
 		for(String input = in.nextLine(); !(input.equals("EXIT")); input = in.nextLine()){
 			if(input.startsWith("SEND")){
 				try {
-					sendMessage(input);
+					String writtenCommnad = input.substring(input.indexOf(" ")+1, input.length());
+				//	if (checkCommand(writtenCommnad))
+						sendMessage(writtenCommnad);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -46,9 +48,18 @@ public class Client {
 			try {
 				socket.setSoTimeout(1000);
 				socket.receive(ackpacket);
-				//TODO Parse ack received to filter erro messages sent from the server
+
 				ackRecived = true;
 				System.out.println("ACK Recived");
+				
+				//Process info from the ack
+				byte[] ackbytes = ackpacket.getData();
+				if (ackbytes[0]==0 && ackbytes[1]==0)
+					System.out.println("Transaction is completed");
+				else if (ackbytes[0]==1)
+					System.out.println("Message error: Invalid Destination IBAN");
+				else if (ackbytes[1]==1)
+					System.out.println("Message Error: Unavailable Ammount for transfer");
 				break;
 			}
 			catch (SocketTimeoutException e){
@@ -57,5 +68,17 @@ public class Client {
 			}
 		}
 		socket.close();
+	}
+	
+	private static boolean checkCommand(String input){
+		String[] tokens = input.split(" ");
+		if ((tokens[0].length()==25) && (tokens[1].length()==8))
+			return true;
+		return false;
+	}
+	
+	
+	private static void registerIBAN(String iban) throws Exception{
+		sendMessage("associate "+iban);
 	}
 }
