@@ -6,12 +6,14 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
+import java.util.List;
 
 
 public class Server {
 	private static DatagramSocket socket;
 	private static HashMap<String, Integer> Bank = new HashMap<String, Integer>(); //Emulate the bank
 	private static HashMap<SocketAddress, String> Contacts = new HashMap<SocketAddress, String>(); //Associated addrs for each account
+	private static HashMap<String,List<String>> ClientsMatrix = new HashMap<String,List<String>>();
 	
 	public static void main(String[] args) throws Exception {
 		System.out.println("Server started running");
@@ -36,6 +38,8 @@ public class Server {
 	public static byte[] parseMessage(String msg, SocketAddress sender){
 		if (msg.split(" ")[0].compareTo("associate")==0){  //TO register the "phone number" associated with an account 
 			String iban = msg.split(" ")[1].trim();			//Since client ports are not fixed we need to register them at the beginning of each run
+			MatrixCard d = new MatrixCard(iban);
+			ClientsMatrix.put(iban, d.getContent());
 			Contacts.put(sender, iban);
 			byte[] ackPacket = new byte[2];
 			ackPacket[0] = (byte)(0);
