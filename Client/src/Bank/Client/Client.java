@@ -50,7 +50,7 @@ public class Client {
 				socket.receive(ackpacket);
 
 				ackRecived = true;
-				System.out.println("ACK Recived");
+				System.out.println("ACK Received");
 				
 				//Process info from the ack
 				byte[] ackbytes = ackpacket.getData();

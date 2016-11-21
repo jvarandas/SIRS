@@ -1,5 +1,11 @@
 package Bank.Server;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -14,12 +20,14 @@ public class Server {
 	private static HashMap<String, Integer> Bank = new HashMap<String, Integer>(); //Emulate the bank
 	private static HashMap<SocketAddress, String> Contacts = new HashMap<SocketAddress, String>(); //Associated addrs for each account
 	private static HashMap<String,List<String>> ClientsMatrix = new HashMap<String,List<String>>();
+	private static HashMap<String, String> Passwords = new HashMap<String, String>();
 	
 	public static void main(String[] args) throws Exception {
 		System.out.println("Server started running");
 		byte[] buffer = new byte[120];
 		socket = new DatagramSocket(10100);
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+		confFile(Passwords, Bank, Contacts);
 		
 		System.out.println("Running - Awaiting Messages");
 		System.out.println("Press enter to shutdown");
@@ -27,21 +35,33 @@ public class Server {
 		while(true){
 			socket.receive(packet);
 			String out = new String(packet.getData());
-			System.out.println("Recived: "+ out);
+			System.out.println("Received: "+ out);
 			//Thread.sleep(1000);
 			byte[] ackToSend = parseMessage(out, packet.getSocketAddress());
+			confFile(Passwords, Bank, Contacts);
 			sendAck(packet.getAddress(), packet.getPort(), ackToSend);
 		
 		}
 	}
 	
-	public static byte[] parseMessage(String msg, SocketAddress sender){
+	private static byte[] parseMessage(String msg, SocketAddress sender) throws IOException{
 		if (msg.split(" ")[0].compareTo("associate")==0){  //TO register the "phone number" associated with an account 
 			String iban = msg.split(" ")[1].trim();			//Since client ports are not fixed we need to register them at the beginning of each run
 			MatrixCard d = new MatrixCard(iban);
+			String password = msg.split(" ")[2];
+			byte[] ackPacket = new byte[2];
+			
+			if(existsIn(iban)){
+				System.out.println("That iban exists associated with another account");
+				ackPacket[0] = 1;
+				ackPacket[1] = 1;
+				return ackPacket;
+			}
+			
+			Passwords.put(iban, password);
+			Bank.put(iban, 1000); //INICIALIZA UMA CONTA COM 1000€ POR DEFAULT
 			ClientsMatrix.put(iban, d.getContent());
 			Contacts.put(sender, iban);
-			byte[] ackPacket = new byte[2];
 			ackPacket[0] = (byte)(0);
 		    ackPacket[1] = (byte)(0);
 			return  ackPacket;
@@ -56,6 +76,60 @@ public class Server {
 		String sourceAccount = Contacts.get(sender);
 		return processTransfer(sourceAccount, destAccount, amount); //TODO try and catch
 
+	}
+	
+	private static void confFile(HashMap<String, String> passwords, HashMap<String, Integer> bank, HashMap<SocketAddress, String> contacts) throws IOException{
+		
+		BufferedWriter output = null;
+		String text = new String();
+		String iban_aux = new String();
+		String password_aux = new String();
+		int saldo;
+		
+        try {
+            File file = new File("bank.cnf");
+            output = new BufferedWriter(new FileWriter(file));
+            
+            text = "Addres\t\t\tIban\tSaldo\tPassword\n";
+            output.write(text);
+            
+            text = new String();
+            for(SocketAddress address: contacts.keySet()){
+            	iban_aux = contacts.get(address);
+            	saldo = bank.get(iban_aux);
+            	password_aux = passwords.get(iban_aux);
+            	
+            	text += address+"\t"+iban_aux+"\t"+saldo+"\t"+password_aux+"\n";
+            }
+            
+            output.write(text);
+            output.close();
+            
+        } catch ( IOException e ) {
+            e.printStackTrace();
+            
+        }
+	}
+	
+	private static boolean existsIn(String iban) throws IOException{
+		
+		BufferedReader br = new BufferedReader(new FileReader("bank.cnf"));
+		try {
+		    String line = br.readLine();
+
+		    while (line != null) {
+		        
+		    	if(line.contains(iban))
+		    		return true;
+		    	
+		        line = br.readLine();
+		    }
+		    
+		} finally {
+		    br.close();
+		}
+		
+		return false;
 	}
 	
 	private static byte[] processTransfer(String source, String dest, int ammount){ //TODO throw excetions 
@@ -77,7 +151,7 @@ public class Server {
 		return ackPacket;
 	}
 	
-	public static void sendAck(InetAddress address, int port, byte[] ackPacket) throws IOException{
+	private static void sendAck(InetAddress address, int port, byte[] ackPacket) throws IOException{
 	    DatagramPacket acknowledgement = new  DatagramPacket(ackPacket, ackPacket.length, address, port);
 	    socket.send(acknowledgement);
 	    System.out.println("Sent ack");
