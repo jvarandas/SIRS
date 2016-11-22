@@ -18,6 +18,7 @@ import java.util.List;
 
 
 public class Server {
+	private static File _config;
 	private static DatagramSocket socket;
 	private static HashMap<String, Integer> Bank = new HashMap<String, Integer>(); //Emulate the bank
 	private static HashMap<SocketAddress, String> Contacts = new HashMap<SocketAddress, String>(); //Associated addrs for each account
@@ -26,6 +27,7 @@ public class Server {
 	
 	public static void main(String[] args) throws Exception {
 		System.out.println("Server started running");
+		_config = new File("bank.cnf");
 		byte[] buffer = new byte[120];
 		socket = new DatagramSocket(10100);
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -91,8 +93,7 @@ public class Server {
 		int saldo;
 		
         try {
-            File file = new File("bank.cnf");
-            FileOutputStream fos = new FileOutputStream(file);
+            FileOutputStream fos = new FileOutputStream(_config);
             
             output = new BufferedWriter(new OutputStreamWriter(fos));
             
@@ -112,7 +113,7 @@ public class Server {
             output.close();
             
         } catch ( IOException e ) {
-            e.printStackTrace();
+            System.out.println("deu disparate");
             
         }
 	}
@@ -120,7 +121,7 @@ public class Server {
 	private static boolean existsIn(String iban) throws IOException{
 		
 		try {
-			BufferedReader br = new BufferedReader(new FileReader("bank.cnf"));
+			BufferedReader br = new BufferedReader(new FileReader(_config.getName()));
 		    String line = br.readLine();
 		    String[] aux;
 
@@ -138,7 +139,6 @@ public class Server {
 		    br.close();
 		    
 		} catch(FileNotFoundException f){
-			File file = new File("bank.cnf");
 			return false;
 			
 		}
