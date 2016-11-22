@@ -113,7 +113,7 @@ public class Server {
             output.close();
             
         } catch ( IOException e ) {
-            System.out.println("deu disparate");
+            e.printStackTrace();
             
         }
 	}
