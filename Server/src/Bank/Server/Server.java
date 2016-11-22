@@ -4,9 +4,11 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -27,7 +29,6 @@ public class Server {
 		byte[] buffer = new byte[120];
 		socket = new DatagramSocket(10100);
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-		confFile(Passwords, Bank, Contacts);
 		
 		System.out.println("Running - Awaiting Messages");
 		System.out.println("Press enter to shutdown");
@@ -38,7 +39,6 @@ public class Server {
 			System.out.println("Received: "+ out);
 			//Thread.sleep(1000);
 			byte[] ackToSend = parseMessage(out, packet.getSocketAddress());
-			confFile(Passwords, Bank, Contacts);
 			sendAck(packet.getAddress(), packet.getPort(), ackToSend);
 		
 		}
@@ -62,6 +62,9 @@ public class Server {
 			Bank.put(iban, 1000); //INICIALIZA UMA CONTA COM 1000€ POR DEFAULT
 			ClientsMatrix.put(iban, d.getContent());
 			Contacts.put(sender, iban);
+			
+			confFile(Passwords, Bank, Contacts);
+			
 			ackPacket[0] = (byte)(0);
 		    ackPacket[1] = (byte)(0);
 			return  ackPacket;
@@ -81,19 +84,20 @@ public class Server {
 	private static void confFile(HashMap<String, String> passwords, HashMap<String, Integer> bank, HashMap<SocketAddress, String> contacts) throws IOException{
 		
 		BufferedWriter output = null;
-		String text = new String();
+		String titulo = new String();
 		String iban_aux = new String();
 		String password_aux = new String();
+		String text = new String();
 		int saldo;
 		
         try {
             File file = new File("bank.cnf");
-            output = new BufferedWriter(new FileWriter(file));
+            FileOutputStream fos = new FileOutputStream(file);
             
-            text = "Addres\t\t\tIban\tSaldo\tPassword\n";
-            output.write(text);
+            output = new BufferedWriter(new OutputStreamWriter(fos));
             
-            text = new String();
+            titulo = "Addres\t\t\tIban\tSaldo\tPassword";
+            
             for(SocketAddress address: contacts.keySet()){
             	iban_aux = contacts.get(address);
             	saldo = bank.get(iban_aux);
@@ -102,6 +106,8 @@ public class Server {
             	text += address+"\t"+iban_aux+"\t"+saldo+"\t"+password_aux+"\n";
             }
             
+            output.write(titulo);
+            output.newLine();
             output.write(text);
             output.close();
             
@@ -113,26 +119,34 @@ public class Server {
 	
 	private static boolean existsIn(String iban) throws IOException{
 		
-		BufferedReader br = new BufferedReader(new FileReader("bank.cnf"));
 		try {
+			BufferedReader br = new BufferedReader(new FileReader("bank.cnf"));
 		    String line = br.readLine();
+		    String[] aux;
 
 		    while (line != null) {
 		        
-		    	if(line.contains(iban))
-		    		return true;
+		    	aux = line.split(" ");
+		    	
+			    for(String s: aux)	
+		    		if(s.equals(iban))
+			    		return true;
 		    	
 		        line = br.readLine();
 		    }
 		    
-		} finally {
 		    br.close();
+		    
+		} catch(FileNotFoundException f){
+			File file = new File("bank.cnf");
+			return false;
+			
 		}
 		
 		return false;
 	}
 	
-	private static byte[] processTransfer(String source, String dest, int ammount){ //TODO throw excetions 
+	private static byte[] processTransfer(String source, String dest, int ammount) throws IOException{ //TODO throw excetions 
 	    
 		byte[] ackPacket = new byte[2];
 	    
@@ -147,6 +161,7 @@ public class Server {
 			Bank.put(dest, Bank.get(dest)+ammount);
 			ackPacket[0] = (byte)(0);
 		    ackPacket[1] = (byte)(0);
+		    confFile(Passwords, Bank, Contacts);
 		}
 		return ackPacket;
 	}
