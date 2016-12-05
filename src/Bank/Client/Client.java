@@ -27,6 +27,7 @@ public class Client {
 	private static DatagramSocket socket;
 	private static int port;
 	private static Scanner in;
+	private static int phone_number;
 	
 	public static void main(String[] args) throws UnknownHostException, SocketException {
 		
@@ -55,7 +56,18 @@ public class Client {
 		}
 		in.close();
 	}
-
+	
+	public static void setPhoneNumber(){
+		
+		in = new Scanner(System.in);
+		String input = new String();
+		
+		input = in.nextLine();
+		
+		if(input.matches("[0-9]+") && input.length() == 9)
+			phone_number = Integer.parseInt(input);
+	}
+	
 	private static void associateCommand(String input) throws Exception {
 		Message m = new Message(input);
 		
@@ -110,7 +122,7 @@ public class Client {
 		boolean ackReceived = false;
 		boolean timeout = false;
 
-		byte[] ack = new byte[120];
+		byte[] ack = new byte[480];
         DatagramPacket ackpacket = new DatagramPacket(ack, ack.length);
 
 		while (!ackReceived && !timeout) {
@@ -155,7 +167,7 @@ public class Client {
 	
 	private static boolean confirmIdentity() throws IOException {
 		
-		byte[] codes = new byte[120];
+		byte[] codes = new byte[480];
 		DatagramPacket codePacket = new DatagramPacket(codes, codes.length);
 		
 		try {

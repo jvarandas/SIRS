@@ -60,7 +60,7 @@ public class Server {
 			System.out.println(client);
 		}
 		
-		byte[] buffer = new byte[120];
+		byte[] buffer = new byte[480];
 		socket = new DatagramSocket(10100);
 		
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
