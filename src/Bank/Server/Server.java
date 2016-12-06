@@ -5,12 +5,16 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -22,6 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
+
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.DHPublicKeySpec;
 
 
 
@@ -151,6 +158,9 @@ class ClientServiceThread extends Thread{
 	private static long Max_Time_Diff = 2; //max difference of 2 seconds
 	private static SecureRandom randomizer = new SecureRandom();
 	
+	private static BigInteger a = new BigInteger(10, randomizer);
+	private static BigInteger sessionKey;
+	
 	ClientServiceThread(DatagramSocket socket, Map<String, Integer> Bank, Map<SocketAddress, String> Contacts, Map<String,List<String>> ClientsMatrix, Map<Integer, String> ClientsPhoneNumbers){
 		this.socket = socket;
 		this.Bank= Bank;
@@ -162,10 +172,12 @@ class ClientServiceThread extends Thread{
 	@Override
 	public void run() {
 		
-		byte[] buffer = new byte[240];
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+		try {			
+			generateDHValues();
+			
+			byte[] buffer = new byte[240];
+			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		
-		try {
 			socket.setSoTimeout(0);
 			while(true){
 				socket.receive(packet);
@@ -178,9 +190,60 @@ class ClientServiceThread extends Thread{
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
-
+	
+	private void generateDHValues() throws Exception{
+		byte[] keys = new byte[240];
+		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length); 
+		socket.receive(keysPacket);
+		
+		String message = new String(keysPacket.getData());
+		String[] content = message.split("\\|\\|");
+		BigInteger p = new BigInteger(content[2]);
+		
+		keys = new byte[240];
+		keysPacket = new DatagramPacket(keys, keys.length); 
+		socket.receive(keysPacket);
+		
+		message = new String(keysPacket.getData());
+		content = message.split("\\|\\|");		
+		BigInteger q = new BigInteger(content[2]);
+		
+		keys = new byte[240];
+		keysPacket = new DatagramPacket(keys, keys.length); 
+		socket.receive(keysPacket);
+		
+		message = new String(keysPacket.getData());
+		content = message.split("\\|\\|");		
+		BigInteger yB = new BigInteger(content[2]);
+		
+		BigInteger yA = new BigInteger(10, randomizer).abs();
+		
+		int bitLength = 1024; // 1024 bits
+	    
+	    a = BigInteger.probablePrime(bitLength, randomizer).abs();
+	    yA = p.modPow(a, q);
+	    
+	    Message m = new Message(q);
+	    byte[] keys_server = m.getMessage().getBytes();
+	    DatagramPacket keysServerPacket = new DatagramPacket(keys_server, keys_server.length, keysPacket.getSocketAddress());
+	    socket.send(keysServerPacket);
+	    
+	    m = new Message(yA);
+	    keys_server = m.getMessage().getBytes();
+	    keysServerPacket = new DatagramPacket(keys_server, keys_server.length, keysPacket.getSocketAddress());
+	    socket.send(keysServerPacket);
+	    
+	    sessionKey = yB.modPow(a, q);
+		
+		System.out.println("sessionkey: "+sessionKey);
+	    
+	}
+	
+	
 	private boolean validateTimestamp(String msg){
 		String[] content = msg.split("\\|\\|");
 		String date = content[content.length-1].substring(0, 19);

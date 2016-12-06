@@ -29,13 +29,22 @@ public class Client {
 	private static Scanner in;
 	private static int phone_number;
 	
-	public static void main(String[] args) throws IOException {
+	private static SecureRandom randomizer = new SecureRandom();
+	
+	private static BigInteger b = new BigInteger(10, randomizer);
+	private static BigInteger sessionKey;
+	
+	public static void main(String[] args) throws Exception {
 		
 		addr = InetAddress.getByName(ServerHost);
 		socket = new DatagramSocket();
-
+		
 		requestPort();
 		System.out.println("Client started running...");
+		
+		generateDHPublicValues();
+		generateDHSecretKey();
+		
 		in = new Scanner(System.in);
 		
 		setPhoneNumber();
@@ -105,6 +114,61 @@ public class Client {
 				System.out.println("The number is invalid, it should have 9 digits");
 			}
 		}
+	}
+	
+	
+	
+	private static void generateDHPublicValues() throws Exception{
+		
+		
+		BigInteger p = new BigInteger(10, randomizer).abs();
+		BigInteger q = new BigInteger(10, randomizer).abs();
+		BigInteger yB = new BigInteger(10, randomizer).abs();
+		
+		int bitLength = 512; // 1024 bits
+	    
+	    p = BigInteger.probablePrime(bitLength, randomizer).abs();
+	    q = BigInteger.probablePrime(bitLength, randomizer).abs();
+	    b = BigInteger.probablePrime(bitLength, randomizer).abs();
+	    yB = p.modPow(b, q);
+	    
+	    System.out.println("P= "+p);
+	    Message m = new Message(p);
+	    byte[] keys = m.getMessage().getBytes();
+	    DatagramPacket keysPacket = new DatagramPacket(keys, keys.length, addr, port);
+	    socket.send(keysPacket);
+	    m = new Message(q);
+	    keys = m.getMessage().getBytes();
+	    keysPacket = new DatagramPacket(keys, keys.length, addr, port);
+	    socket.send(keysPacket);
+	    m = new Message(yB);
+	    keys = m.getMessage().getBytes();
+	    keysPacket = new DatagramPacket(keys, keys.length, addr, port);
+	    socket.send(keysPacket); 
+	    
+	}
+		
+	private static void generateDHSecretKey() throws IOException{
+		byte[] keys = new byte[240];
+		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length);
+		socket.receive(keysPacket);
+		
+		String message = new String(keysPacket.getData());
+		String[] content = message.split("\\|\\|");
+		BigInteger q = new BigInteger(content[2]);
+		
+		
+		keys = new byte[240];
+		keysPacket = new DatagramPacket(keys, keys.length);
+		socket.receive(keysPacket);
+		
+		message = new String(keysPacket.getData());
+		content = message.split("\\|\\|");
+		BigInteger yA = new BigInteger(content[2]);
+		
+		sessionKey = yA.modPow(b, q);
+		System.out.println(sessionKey+"");
+		
 	}
 	
 	private static void associateCommand(String input) throws Exception {

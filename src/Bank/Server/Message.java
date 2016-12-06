@@ -40,7 +40,14 @@ public class Message {
 		this.timestamp = new Date();
 	}
 
-
+	//messagge to distribute keys
+	public Message(BigInteger p){
+		this.ID = new BigInteger(64, randomizer).longValue();
+		this.type = "send_keys";
+		setPublicKeys(p);
+		this.timestamp = new Date();
+	}
+	
 	//Association command
 	public Message(String iban, int number) throws IbanException{ 
 		this.ID =  new BigInteger(64, randomizer).longValue();
@@ -108,7 +115,11 @@ public class Message {
 			this.data = "not_authorized";
 		}
 	}
-
+	
+	private void setPublicKeys(BigInteger p){
+		this.data = p+"";
+	}
+	
 	private void setPort(int port) {
 		this.data = "" + port;
 	}
