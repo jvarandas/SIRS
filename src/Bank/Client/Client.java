@@ -29,10 +29,11 @@ public class Client {
 	private static Scanner in;
 	private static int phone_number;
 	
-	public static void main(String[] args) throws UnknownHostException, SocketException {
+	public static void main(String[] args) throws IOException {
 		
 		addr = InetAddress.getByName(ServerHost);
 		socket = new DatagramSocket();
+		requestPort();
 		System.out.println("Client started running...");
 		in = new Scanner(System.in);
 		for(String input = in.nextLine(); !(input.toLowerCase().equals("exit")); input = in.nextLine()){
@@ -53,10 +54,36 @@ public class Client {
 					System.out.println(e.getMessage());
 				}
 			}
+			else {
+				System.out.println("Comando desconhecido");
+				System.out.println("Comandos disponiveis: SEND\tASSOCIATE");
+			}
 		}
 		in.close();
 	}
 	
+	private static void requestPort() throws IOException {
+		Message m = new Message();
+		byte[] msgBytes = m.getMessage().getBytes();
+		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, ServerPort);
+		
+		socket.send(packet);
+		
+		byte[] ack = new byte[480];
+        DatagramPacket ackpacket = new DatagramPacket(ack, ack.length);
+        
+        socket.receive(ackpacket);
+		
+        String content[] = new String(ackpacket.getData()).split("\\|\\|");
+        
+        if(content[0].equals("port")){
+        	port = Integer.parseInt(content[2]);
+        	System.out.println("Joined at port " + port);
+        }
+        else System.exit(-1);
+		
+	}
+
 	public static void setPhoneNumber(){
 		
 		in = new Scanner(System.in);
@@ -72,7 +99,7 @@ public class Client {
 		Message m = new Message(input);
 		
 		byte[] msgBytes = m.getMessage().getBytes();
-		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, ServerPort);
+		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		socket.send(packet);
 		
 		if(!waitAck()){
@@ -85,7 +112,6 @@ public class Client {
 			System.out.println("Operation not completed.");
 			return;
 		}
-		port = socket.getLocalPort();
 	}
 
 
@@ -99,7 +125,7 @@ public class Client {
 		
 		byte[] msgBytes = m.getMessage().getBytes();
 
-		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, ServerPort);
+		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		
 		socket.send(packet);
 		
@@ -194,7 +220,7 @@ public class Client {
 		Message m = new Message(code);
 		in = in2;
 		byte[] answer = m.getMessage().getBytes();
-		DatagramPacket answerPacket = new DatagramPacket(answer, answer.length, addr, ServerPort);
+		DatagramPacket answerPacket = new DatagramPacket(answer, answer.length, addr, port);
 		socket.send(answerPacket);
 				
 		if(!waitAck()){

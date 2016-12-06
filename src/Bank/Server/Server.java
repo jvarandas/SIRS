@@ -1,48 +1,38 @@
 package Bank.Server;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketAddress;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.security.SecureRandom;
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
+
 
 
 public class Server {
 	private static File _config;
 	private static DatagramSocket socket;
-	private static HashMap<String, Integer> Bank = new HashMap<String, Integer>(); //Emulate the bank
-	private static HashMap<SocketAddress, String> Contacts = new HashMap<SocketAddress, String>(); //Associated addrs for each account
-	private static HashMap<String,List<String>> ClientsMatrix = new HashMap<String,List<String>>();
-	private static List<Long> ID_Bucket = new ArrayList<Long>();  //to save the received IDS
+	private static Map<String, Integer> Bank = new ConcurrentHashMap<String, Integer>(); //Emulate the bank
+	private static Map<SocketAddress, String> Contacts = new ConcurrentHashMap<SocketAddress, String>(); //Associated addrs for each account
+	private static Map<String,List<String>> ClientsMatrix = new ConcurrentHashMap<String,List<String>>();
 	
-	private static byte[] Confirmation_Ack = 	new byte[] {0,0};	//transfer completed
-	private static byte[] Amount_Error_Ack = 	new byte[] {1,1};	//amount not available 
-	private static byte[] Source_Unknown_Ack = new byte[] {1,0};		//source iban not found
-	private static byte[] Dest_Unknown_Ack = 	new byte[] {0,1};	//dest iban not fount
-	private static byte[] Not_Authorized_Ack = new byte[] {2,0};		//source iban doesnt belong to that port
-	
-	private static long Max_Time_Diff = 2; //max difference of 2 seconds
-	private static SecureRandom randomizer = new SecureRandom(); 
+	private static SecureRandom randomizer = new SecureRandom();
 	
 	public static void main(String[] args) throws Exception {
 		System.out.println("Server started running");
@@ -71,9 +61,10 @@ public class Server {
 		while(true){
 			socket.receive(packet);
 			String message = new String(packet.getData());
-			if (validateTimestamp(message) && validateID(message)){
+			assignPort(message, packet);
+			/*if (validateTimestamp(message) && validateID(message)){
 				parseMessage(packet);
-			}
+			}*/
 		}
 	}
 	
@@ -91,7 +82,104 @@ public class Server {
 		confFile(Bank, Contacts); //flush Bank Hashmap to file
 	}
 
-	private static boolean validateTimestamp(String msg){
+private static void assignPort(String message, DatagramPacket clientPacket) throws IOException{
+	String[] content = message.split("\\|\\|");
+	if(content[0].equals("request")){
+		int port = randomizer.nextInt(65535);
+		Message m = new Message(port);
+		byte[] portPacket = m.getMessage().getBytes();
+		
+		DatagramPacket packet = new DatagramPacket(portPacket, portPacket.length,clientPacket.getAddress(), clientPacket.getPort());
+		DatagramSocket clientSocket = new DatagramSocket(port);
+		clientSocket.send(packet);
+		
+		ClientServiceThread cliThread = new ClientServiceThread(clientSocket, Bank, Contacts, ClientsMatrix);
+		cliThread.start();
+		System.out.println("Client has joined in port " + port);
+	}
+}
+
+private static void confFile(Map<String, Integer> bank, Map<SocketAddress, String> contacts) throws IOException{
+		
+		BufferedWriter output = null;
+		String titulo = new String();
+		String iban_aux = new String();
+		String text = new String();
+		int saldo;
+		
+		try {
+			FileOutputStream fos = new FileOutputStream(_config);
+			
+			output = new BufferedWriter(new OutputStreamWriter(fos));
+			
+			titulo = "Iban\tSaldo";
+			
+			for(SocketAddress address: contacts.keySet()){
+				iban_aux = contacts.get(address);
+				saldo = bank.get(iban_aux);
+				
+				text += iban_aux+"\t"+saldo+"\n";
+			}
+			
+			output.write(titulo);
+			output.newLine();
+			output.write(text);
+			output.close();
+			
+		} catch ( IOException e ) {
+			e.printStackTrace();
+			
+		}
+	}
+}
+
+class ClientServiceThread extends Thread{
+	private Map<String, Integer> Bank;
+	private Map<SocketAddress, String> Contacts; //Associated addrs for each account
+	private Map<String,List<String>> ClientsMatrix;
+	private static List<Long> ID_Bucket = new ArrayList<Long>();  //to save the received IDS
+
+	private DatagramSocket socket;
+	
+	private static byte[] Confirmation_Ack = 	new byte[] {0,0};	//transfer completed
+	private static byte[] Amount_Error_Ack = 	new byte[] {1,1};	//amount not available 
+	private static byte[] Source_Unknown_Ack = new byte[] {1,0};		//source iban not found
+	private static byte[] Dest_Unknown_Ack = 	new byte[] {0,1};	//dest iban not fount
+	private static byte[] Not_Authorized_Ack = new byte[] {2,0};		//source iban doesnt belong to that port
+	
+	private static long Max_Time_Diff = 2; //max difference of 2 seconds
+	private static SecureRandom randomizer = new SecureRandom();
+	
+	ClientServiceThread(DatagramSocket socket, Map<String, Integer> Bank, Map<SocketAddress, String> Contacts, Map<String,List<String>> ClientsMatrix){
+		this.socket = socket;
+		this.Bank= Bank;
+		this.Contacts = Contacts;
+		this.ClientsMatrix = ClientsMatrix;
+	}
+	
+	@Override
+	public void run() {
+		
+		byte[] buffer = new byte[480];
+		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+		
+		try {
+			socket.setSoTimeout(0);
+			while(true){
+				socket.receive(packet);
+				String message = new String(packet.getData());
+				if (validateTimestamp(message) && validateID(message)){
+					parseMessage(packet);
+				}
+			}		
+		} catch (SocketException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private boolean validateTimestamp(String msg){
 		String[] content = msg.split("\\|\\|");
 		String date = content[content.length-1].substring(0, 19);
 		Date timestamp;
@@ -111,7 +199,7 @@ public class Server {
 		}
 	}
 	
-	private static boolean validateID(String msg){
+	private boolean validateID(String msg){
 		long id = Long.parseLong(msg.split("\\|\\|")[1]);
 		 if (!ID_Bucket.contains(id)){
 			 ID_Bucket.add(id);
@@ -120,7 +208,7 @@ public class Server {
 		 else return false;
 	}
 	
-	private static boolean parseMessage(DatagramPacket packet) throws IOException{
+	private boolean parseMessage(DatagramPacket packet) throws IOException{
 		String msg = new String(packet.getData());
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");
@@ -170,8 +258,7 @@ public class Server {
 	
 	
 	
-	private static boolean confirmsIdentity(String iban, DatagramPacket packet) throws IOException{
-		//TODO confirm identity of client by using it's Matrix Card
+	private boolean confirmsIdentity(String iban, DatagramPacket packet) throws IOException{
 		ArrayList<String> matrix = (ArrayList<String>) ClientsMatrix.get(iban);
 		int[][] pos = new int[4][2];
 		char[] chars = new char[4];
@@ -225,7 +312,7 @@ public class Server {
 		}
 	}
 	
-	private static boolean processTransfer(String source, String dest, int ammount, DatagramPacket packet) throws IOException{
+	private boolean processTransfer(String source, String dest, int ammount, DatagramPacket packet) throws IOException{
 		String msg = new String(packet.getData());
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");
@@ -255,7 +342,7 @@ public class Server {
 		return false;
 	}
 	
-	private static void sendAck(InetAddress address, int port, byte[] ackPacket, long ID) throws IOException{
+	private void sendAck(InetAddress address, int port, byte[] ackPacket, long ID) throws IOException{
 		Message ack = new Message(ackPacket);
 		ack.setID(ID);
 		byte[] bytesAck = ack.getMessage().getBytes();
@@ -265,7 +352,7 @@ public class Server {
 }
 
 
-	private static void confFile(HashMap<String, Integer> bank, HashMap<SocketAddress, String> contacts) throws IOException{
+	private void confFile(Map<String, Integer> bank, Map<SocketAddress, String> contacts) throws IOException{
 		
 		BufferedWriter output = null;
 		String titulo = new String();
@@ -274,7 +361,7 @@ public class Server {
 		int saldo;
 		
 		try {
-			FileOutputStream fos = new FileOutputStream(_config);
+			FileOutputStream fos = new FileOutputStream("bank.cnf");
 			
 			output = new BufferedWriter(new OutputStreamWriter(fos));
 			
@@ -297,4 +384,5 @@ public class Server {
 			
 		}
 	}
+
 }

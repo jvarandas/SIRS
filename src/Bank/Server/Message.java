@@ -24,6 +24,23 @@ public class Message {
 	
 	private static SecureRandom randomizer = new SecureRandom(); 
 
+	//request port to server
+	public Message(){
+		this.ID =  new BigInteger(64, randomizer).longValue();
+		this.type = "request";
+		this.data = "";
+		this.timestamp = new Date();
+	}
+	
+	//response to request port
+	public Message(int port) {
+		this.ID =  new BigInteger(64, randomizer).longValue();
+		this.type = "port";
+		setPort(port);
+		this.timestamp = new Date();
+	}
+
+
 	//Association command
 	public Message(String iban) throws IbanException{ 
 		this.ID =  new BigInteger(64, randomizer).longValue();
@@ -66,6 +83,7 @@ public class Message {
 		this.timestamp = new Date();
 	}
 	
+
 	private void setCodes(int[] a, int[] b, int[] c, int[] d) {
 		String line = ":column_" + (a[0]+1) + "_line_" + (a[1]+1) + ":";
 		line += "column_" + (b[0]+1) + "_line_" + (b[1]+1) + ":";
@@ -86,6 +104,10 @@ public class Message {
 		}else if(Arrays.equals(ack, Not_Autorized_Ack)){
 			this.data = "not_authorized";
 		}
+	}
+
+	private void setPort(int port) {
+		this.data = "" + port;
 	}
 
 	private void setIban(String iban) throws IbanException{
