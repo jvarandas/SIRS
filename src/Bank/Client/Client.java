@@ -33,9 +33,13 @@ public class Client {
 		
 		addr = InetAddress.getByName(ServerHost);
 		socket = new DatagramSocket();
+
 		requestPort();
 		System.out.println("Client started running...");
 		in = new Scanner(System.in);
+		
+		setPhoneNumber();
+		System.out.println("Client started running...");
 		for(String input = in.nextLine(); !(input.toLowerCase().equals("exit")); input = in.nextLine()){
 			if(input.toLowerCase().startsWith("send ")){
 				try {
@@ -84,19 +88,27 @@ public class Client {
 		
 	}
 
+	
 	public static void setPhoneNumber(){
-		
-		in = new Scanner(System.in);
+
 		String input = new String();
 		
-		input = in.nextLine();
+		System.out.println("Insert the phone number that you pretend associate to your account");
 		
-		if(input.matches("[0-9]+") && input.length() == 9)
-			phone_number = Integer.parseInt(input);
+		while(true){
+			input = in.nextLine();
+			
+			if(input.matches("[0-9]+") && input.length() == 9){
+				phone_number = Integer.parseInt(input);
+				break;
+			}else{
+				System.out.println("The number is invalid, it should have 9 digits");
+			}
+		}
 	}
 	
 	private static void associateCommand(String input) throws Exception {
-		Message m = new Message(input);
+		Message m = new Message(input, phone_number);
 		
 		byte[] msgBytes = m.getMessage().getBytes();
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
@@ -121,7 +133,7 @@ public class Client {
 		
 		String info[] = input.split(" ");
 	
-		Message m = new Message(info[0], info[1]);
+		Message m = new Message(info[0], info[1], phone_number);
 		
 		byte[] msgBytes = m.getMessage().getBytes();
 
@@ -148,7 +160,7 @@ public class Client {
 		boolean ackReceived = false;
 		boolean timeout = false;
 
-		byte[] ack = new byte[480];
+		byte[] ack = new byte[240];
         DatagramPacket ackpacket = new DatagramPacket(ack, ack.length);
 
 		while (!ackReceived && !timeout) {
@@ -193,7 +205,7 @@ public class Client {
 	
 	private static boolean confirmIdentity() throws IOException {
 		
-		byte[] codes = new byte[480];
+		byte[] codes = new byte[240];
 		DatagramPacket codePacket = new DatagramPacket(codes, codes.length);
 		
 		try {

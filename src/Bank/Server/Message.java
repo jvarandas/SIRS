@@ -42,19 +42,22 @@ public class Message {
 
 
 	//Association command
-	public Message(String iban) throws IbanException{ 
+	public Message(String iban, int number) throws IbanException{ 
 		this.ID =  new BigInteger(64, randomizer).longValue();
 		this.type = "associate";
 		setIban(iban);
+		setPhone(number);
 		this.timestamp = new Date();
 	}
 	
+
 	//Send command
-	public Message(String iban, String amount) throws IbanException, AmountException{
+	public Message(String iban, String amount, int number) throws IbanException, AmountException{
 		this.ID =  new BigInteger(64, randomizer).longValue();
 		this.type = "send";
 		setIban(iban);
 		setAmount(amount);
+		setPhone(number);
 		this.timestamp = new Date();
 	}
 	
@@ -117,6 +120,11 @@ public class Message {
 		else{
 			throw new IbanException(iban);
 		}
+	}
+	
+	private void setPhone(int number) {
+		this.data += " "+number;
+		
 	}
 	
 	private void setAmount(String amount) throws AmountException{

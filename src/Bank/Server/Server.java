@@ -31,6 +31,7 @@ public class Server {
 	private static Map<String, Integer> Bank = new ConcurrentHashMap<String, Integer>(); //Emulate the bank
 	private static Map<SocketAddress, String> Contacts = new ConcurrentHashMap<SocketAddress, String>(); //Associated addrs for each account
 	private static Map<String,List<String>> ClientsMatrix = new ConcurrentHashMap<String,List<String>>();
+	private static Map<Integer, String> ClientsPhoneNumbers = new ConcurrentHashMap<Integer, String>(); 
 	
 	private static SecureRandom randomizer = new SecureRandom();
 	
@@ -93,7 +94,7 @@ private static void assignPort(String message, DatagramPacket clientPacket) thro
 		DatagramSocket clientSocket = new DatagramSocket(port);
 		clientSocket.send(packet);
 		
-		ClientServiceThread cliThread = new ClientServiceThread(clientSocket, Bank, Contacts, ClientsMatrix);
+		ClientServiceThread cliThread = new ClientServiceThread(clientSocket, Bank, Contacts, ClientsMatrix, ClientsPhoneNumbers);
 		cliThread.start();
 		System.out.println("Client has joined in port " + port);
 	}
@@ -137,6 +138,7 @@ class ClientServiceThread extends Thread{
 	private Map<String, Integer> Bank;
 	private Map<SocketAddress, String> Contacts; //Associated addrs for each account
 	private Map<String,List<String>> ClientsMatrix;
+	private Map<Integer, String> ClientsPhoneNumbers;
 	private static List<Long> ID_Bucket = new ArrayList<Long>();  //to save the received IDS
 
 	private DatagramSocket socket;
@@ -150,11 +152,12 @@ class ClientServiceThread extends Thread{
 	private static long Max_Time_Diff = 2; //max difference of 2 seconds
 	private static SecureRandom randomizer = new SecureRandom();
 	
-	ClientServiceThread(DatagramSocket socket, Map<String, Integer> Bank, Map<SocketAddress, String> Contacts, Map<String,List<String>> ClientsMatrix){
+	ClientServiceThread(DatagramSocket socket, Map<String, Integer> Bank, Map<SocketAddress, String> Contacts, Map<String,List<String>> ClientsMatrix, Map<Integer, String> ClientsPhoneNumbers){
 		this.socket = socket;
 		this.Bank= Bank;
 		this.Contacts = Contacts;
 		this.ClientsMatrix = ClientsMatrix;
+		this.ClientsPhoneNumbers = ClientsPhoneNumbers;
 	}
 	
 	@Override
@@ -215,9 +218,17 @@ class ClientServiceThread extends Thread{
 		String type = content[0];
 		String data = content[2];
 		if (type.equals("associate")){  //TO register the "phone number" associated with an account 
-			String iban = data;			//Since client ports are not fixed we need to register them at the beginning of each run
 			
-			if(Contacts.containsValue(iban)){
+			String[] association = data.split(" "); 
+			String iban = association[0];			//Since client ports are not fixed we need to register them at the beginning of each run
+			int number = Integer.parseInt(association[1]);
+			
+			if(ClientsPhoneNumbers.containsKey(number)){
+				System.out.println("Number " + number + " exists associated with another account");
+				sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1]));
+				return false;
+			}
+			else if(ClientsPhoneNumbers.containsValue(iban)){
 				System.out.println("Iban " + iban + " exists associated with another account");
 				sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1]));
 				return false;
@@ -235,6 +246,7 @@ class ClientServiceThread extends Thread{
 			}
 			
 			Contacts.put(sender, iban);
+			ClientsPhoneNumbers.put(number, iban);
 			confFile(Bank, Contacts); //flush Bank Hashmap to file
 			System.out.println("Association successful");
 			return true;
@@ -244,9 +256,10 @@ class ClientServiceThread extends Thread{
 
 			String destAccount = transaction[0];
 			int amount = Integer.parseInt(transaction[1]);
+			int number = Integer.parseInt(transaction[2]);
 
 			//get IBAN from sender addr
-			String sourceAccount = Contacts.get(sender);
+			String sourceAccount = ClientsPhoneNumbers.get(number);
 			
 			
 			 return processTransfer(sourceAccount, destAccount, amount, packet);
