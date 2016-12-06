@@ -33,6 +33,7 @@ public class Server {
 	private static HashMap<String, Integer> Bank = new HashMap<String, Integer>(); //Emulate the bank
 	private static HashMap<SocketAddress, String> Contacts = new HashMap<SocketAddress, String>(); //Associated addrs for each account
 	private static HashMap<String,List<String>> ClientsMatrix = new HashMap<String,List<String>>();
+	private static HashMap<Integer, String> ClientsPhoneNumbers = new HashMap<Integer, String>();
 	private static List<Long> ID_Bucket = new ArrayList<Long>();  //to save the received IDS
 	
 	private static byte[] Confirmation_Ack = 	new byte[] {0,0};	//transfer completed
@@ -127,9 +128,17 @@ public class Server {
 		String type = content[0];
 		String data = content[2];
 		if (type.equals("associate")){  //TO register the "phone number" associated with an account 
-			String iban = data;			//Since client ports are not fixed we need to register them at the beginning of each run
 			
-			if(Contacts.containsValue(iban)){
+			String[] association = data.split(" "); 
+			String iban = association[0];			//Since client ports are not fixed we need to register them at the beginning of each run
+			int number = Integer.parseInt(association[1]);
+			
+			if(ClientsPhoneNumbers.containsKey(number)){
+				System.out.println("Number " + number + " exists associated with another account");
+				sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1]));
+				return false;
+			}
+			else if(ClientsPhoneNumbers.containsValue(iban)){
 				System.out.println("Iban " + iban + " exists associated with another account");
 				sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1]));
 				return false;
@@ -147,6 +156,7 @@ public class Server {
 			}
 			
 			Contacts.put(sender, iban);
+			ClientsPhoneNumbers.put(number, iban);
 			confFile(Bank, Contacts); //flush Bank Hashmap to file
 			System.out.println("Association successful");
 			return true;
@@ -156,9 +166,10 @@ public class Server {
 
 			String destAccount = transaction[0];
 			int amount = Integer.parseInt(transaction[1]);
+			int number = Integer.parseInt(transaction[2]);
 
 			//get IBAN from sender addr
-			String sourceAccount = Contacts.get(sender);
+			String sourceAccount = ClientsPhoneNumbers.get(number);
 			
 			
 			 return processTransfer(sourceAccount, destAccount, amount, packet);
