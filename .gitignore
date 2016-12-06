@@ -10,6 +10,7 @@ local.properties
 .loadpath
 .recommenders
 *.card
+*.cnf
 
 # Eclipse Core
 .project
