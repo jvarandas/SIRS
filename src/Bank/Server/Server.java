@@ -51,7 +51,7 @@ public class Server {
 			System.out.println(client);
 		}
 		
-		byte[] buffer = new byte[480];
+		byte[] buffer = new byte[240];
 		socket = new DatagramSocket(10100);
 		
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -80,31 +80,31 @@ public class Server {
 		Bank.put(iban, amount);
 		MatrixCard d = new MatrixCard(iban);
 		ClientsMatrix.put(iban, d.getContent());
-		confFile(Bank, Contacts); //flush Bank Hashmap to file
+		confFile(); //flush Bank Hashmap to file
 	}
 
-private static void assignPort(String message, DatagramPacket clientPacket) throws IOException{
-	String[] content = message.split("\\|\\|");
-	if(content[0].equals("request")){
-		int port = randomizer.nextInt(65535);
-		Message m = new Message(port);
-		byte[] portPacket = m.getMessage().getBytes();
-		
-		DatagramPacket packet = new DatagramPacket(portPacket, portPacket.length,clientPacket.getAddress(), clientPacket.getPort());
-		DatagramSocket clientSocket = new DatagramSocket(port);
-		clientSocket.send(packet);
-		
-		ClientServiceThread cliThread = new ClientServiceThread(clientSocket, Bank, Contacts, ClientsMatrix, ClientsPhoneNumbers);
-		cliThread.start();
-		System.out.println("Client has joined in port " + port);
+	private static void assignPort(String message, DatagramPacket clientPacket) throws IOException{
+		String[] content = message.split("\\|\\|");
+		if(content[0].equals("request")){
+			int port = randomizer.nextInt(15535);
+			port+=50000; //PORTAS DE 50000 ATE 65535
+			Message m = new Message(port);
+			byte[] portPacket = m.getMessage().getBytes();
+			
+			DatagramPacket packet = new DatagramPacket(portPacket, portPacket.length,clientPacket.getAddress(), clientPacket.getPort());
+			DatagramSocket clientSocket = new DatagramSocket(port);
+			clientSocket.send(packet);
+			
+			ClientServiceThread cliThread = new ClientServiceThread(clientSocket, Bank, Contacts, ClientsMatrix, ClientsPhoneNumbers);
+			cliThread.start();
+			System.out.println("Client has joined in port " + port);
+		}
 	}
-}
 
-private static void confFile(Map<String, Integer> bank, Map<SocketAddress, String> contacts) throws IOException{
+	private static void confFile() throws IOException{
 		
 		BufferedWriter output = null;
 		String titulo = new String();
-		String iban_aux = new String();
 		String text = new String();
 		int saldo;
 		
@@ -113,13 +113,12 @@ private static void confFile(Map<String, Integer> bank, Map<SocketAddress, Strin
 			
 			output = new BufferedWriter(new OutputStreamWriter(fos));
 			
-			titulo = "Iban\tSaldo";
+			titulo = "Iban\t\t\t\tSaldo";
 			
-			for(SocketAddress address: contacts.keySet()){
-				iban_aux = contacts.get(address);
-				saldo = bank.get(iban_aux);
+			for(String iban: Bank.keySet()){
+				saldo = Bank.get(iban);
 				
-				text += iban_aux+"\t"+saldo+"\n";
+				text += iban+"\t"+saldo+"\n";
 			}
 			
 			output.write(titulo);
@@ -163,7 +162,7 @@ class ClientServiceThread extends Thread{
 	@Override
 	public void run() {
 		
-		byte[] buffer = new byte[480];
+		byte[] buffer = new byte[240];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		
 		try {
@@ -247,7 +246,7 @@ class ClientServiceThread extends Thread{
 			
 			Contacts.put(sender, iban);
 			ClientsPhoneNumbers.put(number, iban);
-			confFile(Bank, Contacts); //flush Bank Hashmap to file
+			confFile(); //flush Bank Hashmap to file
 			System.out.println("Association successful");
 			return true;
 			
@@ -290,7 +289,7 @@ class ClientServiceThread extends Thread{
 		DatagramPacket positionPacket = new  DatagramPacket(positions, positions.length, packet.getAddress(), packet.getPort());
 		socket.send(positionPacket);
 		
-		byte[] ack = new byte[120];
+		byte[] ack = new byte[240];
         DatagramPacket codePacket = new DatagramPacket(ack, ack.length);
 		
 		try {
@@ -349,7 +348,7 @@ class ClientServiceThread extends Thread{
 			}
 			Bank.put(source, Bank.get(source)-ammount);
 			Bank.put(dest, Bank.get(dest)+ammount);
-			confFile(Bank, Contacts); //flush Bank Hashmap to file
+			confFile(); //flush Bank Hashmap to file
 		    return true;
 		}
 		return false;
@@ -362,14 +361,13 @@ class ClientServiceThread extends Thread{
 	    DatagramPacket acknowledgement = new  DatagramPacket(bytesAck, bytesAck.length, address, port);
 	    socket.send(acknowledgement);
 	    System.out.println("Sent ack");
-}
+	}
 
 
-	private void confFile(Map<String, Integer> bank, Map<SocketAddress, String> contacts) throws IOException{
+	private void confFile() throws IOException{
 		
 		BufferedWriter output = null;
 		String titulo = new String();
-		String iban_aux = new String();
 		String text = new String();
 		int saldo;
 		
@@ -378,13 +376,12 @@ class ClientServiceThread extends Thread{
 			
 			output = new BufferedWriter(new OutputStreamWriter(fos));
 			
-			titulo = "Iban\tSaldo";
+			titulo = "Iban\t\t\t\tSaldo";
 			
-			for(SocketAddress address: contacts.keySet()){
-				iban_aux = contacts.get(address);
-				saldo = bank.get(iban_aux);
+			for(String iban: Bank.keySet()){
+				saldo = Bank.get(iban);
 				
-				text += iban_aux+"\t"+saldo+"\n";
+				text += iban+"\t"+saldo+"\n";
 			}
 			
 			output.write(titulo);

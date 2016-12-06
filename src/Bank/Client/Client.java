@@ -73,7 +73,7 @@ public class Client {
 		
 		socket.send(packet);
 		
-		byte[] ack = new byte[480];
+		byte[] ack = new byte[240];
         DatagramPacket ackpacket = new DatagramPacket(ack, ack.length);
         
         socket.receive(ackpacket);
