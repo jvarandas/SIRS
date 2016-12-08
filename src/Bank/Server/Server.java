@@ -13,9 +13,12 @@ import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -30,8 +33,13 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHPublicKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import Bank.Server.Exceptions.DHMessageException;
 import Bank.Server.Exceptions.DataSizeException;
@@ -64,7 +72,7 @@ public class Server {
 			System.out.println(client);
 		}
 		
-		byte[] buffer = new byte[240];
+		byte[] buffer = new byte[120];
 		socket = new DatagramSocket(10100);
 		
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -166,7 +174,9 @@ class ClientServiceThread extends Thread{
 	private static SecureRandom randomizer = new SecureRandom();
 	
 	private static BigInteger a = new BigInteger(10, randomizer);
-	private static BigInteger sessionKey;
+	private static String sessionKey = "1234567891234567";
+	
+	//private static AES cbc;
 	
 	ClientServiceThread(DatagramSocket socket, Map<String, Integer> Bank, Map<SocketAddress, String> Contacts, Map<String,List<String>> ClientsMatrix, Map<Integer, String> ClientsPhoneNumbers){
 		this.socket = socket;
@@ -181,15 +191,18 @@ class ClientServiceThread extends Thread{
 		
 		try {			
 			//generateDHValues();
-			
-			byte[] buffer = new byte[240];
+			//cbc = new AES(sessionKey);
+			byte[] buffer = new byte[120];
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		
 			socket.setSoTimeout(0);
 			while(true){
 				socket.receive(packet);
-				String message = new String(packet.getData());
-				if (validateTimestamp(message) && validateID(message)){
+				String received = new String(packet.getData());
+				System.out.println(received.length());
+				//String message = cbc.decrypt(received);
+				String message = received;
+				if (validateID(message)){
 					parseMessage(packet);
 				}
 			}		
@@ -225,7 +238,8 @@ class ClientServiceThread extends Thread{
 	    System.out.println(yA);
 	    sendDHMessage(messages);
 	    
-	    sessionKey = yB.modPow(a, q);
+	    //sessionKey = yB.modPow(a, q);
+	   
 	    System.out.println("THE KEY: "+ sessionKey);
 	}
 	
@@ -266,7 +280,7 @@ class ClientServiceThread extends Thread{
 		}
 	}
 	
-	private boolean validateTimestamp(String msg){
+	/*private boolean validateTimestamp(String msg){
 		String[] content = msg.split("\\|\\|");
 		String date = content[content.length-1].substring(0, 19);
 		Date timestamp;
@@ -284,7 +298,7 @@ class ClientServiceThread extends Thread{
 			System.out.println("erro no parse" + e.getErrorOffset());
 			return false;
 		}
-	}
+	}*/
 	
 	private boolean validateID(String msg){
 		long id = Long.parseLong(msg.split("\\|\\|")[1]);
@@ -295,8 +309,14 @@ class ClientServiceThread extends Thread{
 		 else return false;
 	}
 	
-	private boolean parseMessage(DatagramPacket packet) throws IOException{
-		String msg = new String(packet.getData());
+	private boolean parseMessage(DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
+		String received = new String(packet.getData());
+		
+		System.out.println(received.length());
+		
+		//String msg = cbc.decrypt(received);
+		String msg = received;
+		
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");
 		String type = content[0];
@@ -355,7 +375,7 @@ class ClientServiceThread extends Thread{
 	
 	
 	
-	private boolean confirmsIdentity(String iban, DatagramPacket packet) throws IOException{
+	private boolean confirmsIdentity(String iban, DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
 		ArrayList<String> matrix = (ArrayList<String>) ClientsMatrix.get(iban);
 		int[][] pos = new int[4][2];
 		char[] chars = new char[4];
@@ -374,7 +394,7 @@ class ClientServiceThread extends Thread{
 		DatagramPacket positionPacket = new  DatagramPacket(positions, positions.length, packet.getAddress(), packet.getPort());
 		socket.send(positionPacket);
 		
-		byte[] ack = new byte[240];
+		byte[] ack = new byte[120];
         DatagramPacket codePacket = new DatagramPacket(ack, ack.length);
 		
 		try {
@@ -382,9 +402,11 @@ class ClientServiceThread extends Thread{
 			socket.receive(codePacket);
 			socket.setSoTimeout(0);
 			
-			String msg = new String(codePacket.getData());
+			String received = new String(codePacket.getData());
+			//String msg = cbc.decrypt(received);
+			String msg = received;
 			
-			if (!validateTimestamp(msg) || !validateID(msg)){
+			if (!validateID(msg)){
 				return false;
 			}
 			String content[] = msg.split("\\|\\|");
@@ -409,7 +431,7 @@ class ClientServiceThread extends Thread{
 		}
 	}
 	
-	private boolean processTransfer(String source, String dest, int ammount, DatagramPacket packet) throws IOException{
+	private boolean processTransfer(String source, String dest, int ammount, DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
 		String msg = new String(packet.getData());
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");

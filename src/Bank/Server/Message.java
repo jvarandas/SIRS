@@ -22,7 +22,6 @@ public class Message {
 	private long ID;
 	private String type;
 	private String data;
-	private Date timestamp;
 	
 	private static SecureRandom randomizer = new SecureRandom(); 
 
@@ -31,7 +30,6 @@ public class Message {
 		this.ID =  new BigInteger(64, randomizer).abs().longValue();
 		this.type = "request";
 		this.data = "";
-		this.timestamp = new Date();
 	}
 	
 	
@@ -40,14 +38,12 @@ public class Message {
 		this.ID =  new BigInteger(64, randomizer).longValue();
 		this.type = "port";
 		setPort(port);
-		this.timestamp = new Date();
 	}
 
 	//message to distribute keys
 	public Message(String p){
 		this.type = null;
 		setPublicKeys(p);
-		this.timestamp = null;
 	}
 	
 	//Association command
@@ -56,7 +52,6 @@ public class Message {
 		this.type = "associate";
 		setIban(iban);
 		setPhone(number);
-		this.timestamp = new Date();
 	}
 	
 
@@ -67,7 +62,6 @@ public class Message {
 		setIban(iban);
 		setAmount(amount);
 		setPhone(number);
-		this.timestamp = new Date();
 	}
 	
 	
@@ -76,7 +70,6 @@ public class Message {
 		this.ID =  new BigInteger(64, randomizer).abs().longValue();
 		this.type = "codes_answer";
 		this.data = new String(code);
-		this.timestamp = new Date();
 	}
 	
 	
@@ -84,7 +77,6 @@ public class Message {
 	public Message(byte[] ack){
 		this.type = "ack";
 		setAck(ack);
-		this.timestamp = new Date();
 	}
 	
 	//Server sends positions of matrix card
@@ -92,7 +84,6 @@ public class Message {
 		this.ID =  new BigInteger(64, randomizer).longValue();
 		this.type = "codes";
 		setCodes(a,b,c,d);
-		this.timestamp = new Date();
 	}
 
 	private void setCodes(int[] a, int[] b, int[] c, int[] d) {
@@ -196,13 +187,9 @@ public class Message {
 		return this.data;
 	}
 	
-	private String getTimeStamp(){
-		SimpleDateFormat dt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		return dt.format(this.timestamp);
-	}
 	
 	public String getMessage(){
-		return getType() + "||" + getID() + "||" + getData() + "||" + getTimeStamp();
+		return getType() + "||" + getID() + "||" + getData() +"||";
 	}
 	
 	public String getDHMessage() throws DHMessageException{

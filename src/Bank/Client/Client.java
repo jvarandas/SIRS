@@ -2,6 +2,7 @@ package Bank.Client;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -11,6 +12,9 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,6 +24,13 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import Bank.Server.AES;
 import Bank.Server.Message;
 import Bank.Server.Exceptions.*;
 
@@ -37,18 +48,20 @@ public class Client {
 	private static SecureRandom randomizer = new SecureRandom();
 	
 	private static BigInteger b = new BigInteger(10, randomizer);
-	private static BigInteger sessionKey;
+	private static String sessionKey = "1234567891234567";
+	
+	private static AES cbc;
 	
 	public static void main(String[] args) throws Exception {
-		
+		cbc = new AES(sessionKey);
 		addr = InetAddress.getByName(ServerHost);
 		socket = new DatagramSocket();
 		
 		requestPort();
 		System.out.println("Client started running...");
 		
-		generateDHPublicValues();
-		generateDHSecretKey();
+		//generateDHPublicValues();
+		//generateDHSecretKey();
 		
 		in = new Scanner(System.in);
 		
@@ -87,15 +100,16 @@ public class Client {
 		
 		socket.send(packet);
 		
-		byte[] ack = new byte[240];
+		byte[] ack = new byte[120];
         DatagramPacket ackpacket = new DatagramPacket(ack, ack.length);
         
         socket.receive(ackpacket);
 		
         String content[] = new String(ackpacket.getData()).split("\\|\\|");
-        
+        System.out.println(content[2]);
+        String nr_port = content[2].substring(0, 5);
         if(content[0].equals("port")){
-        	port = Integer.parseInt(content[2]);
+        	port = Integer.parseInt(nr_port);
         	System.out.println("Joined at port " + port);
         }
         else System.exit(-1);
@@ -204,15 +218,20 @@ public class Client {
 		
 		BigInteger yA = collectDHValues();
 		
-		sessionKey = yA.modPow(b, q);
+		//sessionKey = yA.modPow(b, q);
 		
-		System.out.println("THE KEY: "+sessionKey);
 		//System.out.println(sessionKey);
 		
 	}
 	
 	private static void associateCommand(String input) throws Exception {
 		Message m = new Message(input, phone_number);
+		
+		System.out.println("input: "+input.length());
+		//String info[] = input.split(" ");
+		
+		//String encripted = cbc.encrypt(m.getMessage());
+		//System.out.println("Encripted: "+encripted.length());
 		
 		byte[] msgBytes = m.getMessage().getBytes();
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
@@ -230,14 +249,36 @@ public class Client {
 		}
 	}
 
-
+	private static String encryptMessage(String str) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, UnsupportedEncodingException{
+		
+		String encripted= new String();
+		int i;
+		
+		for(i=0; i+16<str.length(); i+=16){
+			encripted += cbc.encrypt(str.substring(i, i+16));
+		}
+		
+		while(i<str.length()){
+			encripted += "*";
+			i++;
+		}
+		
+		return encripted;
+	}
 
 	private static void sendMessage(String input) throws Exception {
 
 		
+		System.out.println("input: "+input.length());
 		String info[] = input.split(" ");
 	
 		Message m = new Message(info[0], info[1], phone_number);
+		
+		//String encripted = encryptMessage(m.getMessage());
+		
+		//System.out.println("Encripted: "+encripted.length());
+		
+		//byte[] msgBytes = m.getMessage().getBytes();
 		
 		byte[] msgBytes = m.getMessage().getBytes();
 
@@ -264,7 +305,7 @@ public class Client {
 		boolean ackReceived = false;
 		boolean timeout = false;
 
-		byte[] ack = new byte[240];
+		byte[] ack = new byte[120];
         DatagramPacket ackpacket = new DatagramPacket(ack, ack.length);
 
 		while (!ackReceived && !timeout) {
@@ -309,7 +350,7 @@ public class Client {
 	
 	private static boolean confirmIdentity() throws IOException {
 		
-		byte[] codes = new byte[240];
+		byte[] codes = new byte[120];
 		DatagramPacket codePacket = new DatagramPacket(codes, codes.length);
 		
 		try {
