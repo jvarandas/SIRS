@@ -176,7 +176,7 @@ class ClientServiceThread extends Thread{
 	private static BigInteger a = new BigInteger(10, randomizer);
 	private static String sessionKey = "1234567891234567";
 	
-	//private static AES cbc;
+	private static AES cbc;
 	
 	ClientServiceThread(DatagramSocket socket, Map<String, Integer> Bank, Map<SocketAddress, String> Contacts, Map<String,List<String>> ClientsMatrix, Map<Integer, String> ClientsPhoneNumbers){
 		this.socket = socket;
@@ -191,17 +191,16 @@ class ClientServiceThread extends Thread{
 		
 		try {			
 			//generateDHValues();
-			//cbc = new AES(sessionKey);
+			cbc = new AES(sessionKey);
 			byte[] buffer = new byte[120];
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		
 			socket.setSoTimeout(0);
 			while(true){
 				socket.receive(packet);
-				String received = new String(packet.getData());
-				System.out.println(received.length());
-				//String message = cbc.decrypt(received);
-				String message = received;
+				System.out.println(packet.getData().length);
+				byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
+				String message = new String(received);
 				if (validateID(message)){
 					parseMessage(packet);
 				}
@@ -275,7 +274,6 @@ class ClientServiceThread extends Thread{
 		
 		for(byte[] m: byteList){
 			DatagramPacket keysPacket = new DatagramPacket(m, m.length, socketClient);
-			System.out.println("ENVIADO: "+keysPacket.getData().length);
 			socket.send(keysPacket);
 		}
 	}
@@ -310,12 +308,10 @@ class ClientServiceThread extends Thread{
 	}
 	
 	private boolean parseMessage(DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
-		String received = new String(packet.getData());
 		
-		System.out.println(received.length());
+		byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
 		
-		//String msg = cbc.decrypt(received);
-		String msg = received;
+		String msg = new String(received);
 		
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");
@@ -369,7 +365,6 @@ class ClientServiceThread extends Thread{
 			 return processTransfer(sourceAccount, destAccount, amount, packet);
 		}
 		
-		
 		return false;
 	}
 	
@@ -402,9 +397,9 @@ class ClientServiceThread extends Thread{
 			socket.receive(codePacket);
 			socket.setSoTimeout(0);
 			
-			String received = new String(codePacket.getData());
-			//String msg = cbc.decrypt(received);
-			String msg = received;
+			byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
+						
+			String msg = new String(received);
 			
 			if (!validateID(msg)){
 				return false;

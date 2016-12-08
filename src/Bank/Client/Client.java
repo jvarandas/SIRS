@@ -230,10 +230,9 @@ public class Client {
 		System.out.println("input: "+input.length());
 		//String info[] = input.split(" ");
 		
-		//String encripted = cbc.encrypt(m.getMessage());
-		//System.out.println("Encripted: "+encripted.length());
+		byte[] msgBytes = cbc.encrypt(m.getMessage());
+		System.out.println("len: "+msgBytes.length);
 		
-		byte[] msgBytes = m.getMessage().getBytes();
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		socket.send(packet);
 		
@@ -249,7 +248,7 @@ public class Client {
 		}
 	}
 
-	private static String encryptMessage(String str) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, UnsupportedEncodingException{
+	/*private static String encryptMessage(String str) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, UnsupportedEncodingException{
 		
 		String encripted= new String();
 		int i;
@@ -264,7 +263,7 @@ public class Client {
 		}
 		
 		return encripted;
-	}
+	}*/
 
 	private static void sendMessage(String input) throws Exception {
 
@@ -273,12 +272,6 @@ public class Client {
 		String info[] = input.split(" ");
 	
 		Message m = new Message(info[0], info[1], phone_number);
-		
-		//String encripted = encryptMessage(m.getMessage());
-		
-		//System.out.println("Encripted: "+encripted.length());
-		
-		//byte[] msgBytes = m.getMessage().getBytes();
 		
 		byte[] msgBytes = m.getMessage().getBytes();
 
