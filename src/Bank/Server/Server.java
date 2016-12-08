@@ -1,6 +1,7 @@
 package Bank.Server;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -21,6 +22,8 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +32,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHPublicKeySpec;
+
+import Bank.Server.Exceptions.DHMessageException;
+import Bank.Server.Exceptions.DataSizeException;
 
 
 
@@ -148,6 +154,7 @@ class ClientServiceThread extends Thread{
 	private static List<Long> ID_Bucket = new ArrayList<Long>();  //to save the received IDS
 
 	private DatagramSocket socket;
+	private SocketAddress socketClient;
 	
 	private static byte[] Confirmation_Ack = 	new byte[] {0,0};	//transfer completed
 	private static byte[] Amount_Error_Ack = 	new byte[] {1,1};	//amount not available 
@@ -173,7 +180,7 @@ class ClientServiceThread extends Thread{
 	public void run() {
 		
 		try {			
-			generateDHValues();
+			//generateDHValues();
 			
 			byte[] buffer = new byte[240];
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -196,53 +203,68 @@ class ClientServiceThread extends Thread{
 	}
 	
 	private void generateDHValues() throws Exception{
-		byte[] keys = new byte[240];
-		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length); 
-		socket.receive(keysPacket);
 		
-		String message = new String(keysPacket.getData());
-		String[] content = message.split("\\|\\|");
-		BigInteger p = new BigInteger(content[2]);
+		BigInteger p = collectDHValues();
 		
-		keys = new byte[240];
-		keysPacket = new DatagramPacket(keys, keys.length); 
-		socket.receive(keysPacket);
+		BigInteger q = collectDHValues();
 		
-		message = new String(keysPacket.getData());
-		content = message.split("\\|\\|");		
-		BigInteger q = new BigInteger(content[2]);
+		BigInteger yB = collectDHValues();
 		
-		keys = new byte[240];
-		keysPacket = new DatagramPacket(keys, keys.length); 
-		socket.receive(keysPacket);
-		
-		message = new String(keysPacket.getData());
-		content = message.split("\\|\\|");		
-		BigInteger yB = new BigInteger(content[2]);
-		
-		BigInteger yA = new BigInteger(10, randomizer).abs();
+		BigInteger yA = new BigInteger(10, randomizer);
 		
 		int bitLength = 1024; // 1024 bits
 	    
-	    a = BigInteger.probablePrime(bitLength, randomizer).abs();
+	    a = BigInteger.probablePrime(bitLength, randomizer);
 	    yA = p.modPow(a, q);
 	    
-	    Message m = new Message(q);
-	    byte[] keys_server = m.getMessage().getBytes();
-	    DatagramPacket keysServerPacket = new DatagramPacket(keys_server, keys_server.length, keysPacket.getSocketAddress());
-	    socket.send(keysServerPacket);
+	    List<byte[]> messages = computeDHMessage(q);
+	    sendDHMessage(messages);
 	    
-	    m = new Message(yA);
-	    keys_server = m.getMessage().getBytes();
-	    keysServerPacket = new DatagramPacket(keys_server, keys_server.length, keysPacket.getSocketAddress());
-	    socket.send(keysServerPacket);
+	    
+	    messages = computeDHMessage(yA);
+	    System.out.println(yA);
+	    sendDHMessage(messages);
 	    
 	    sessionKey = yB.modPow(a, q);
-		
-		System.out.println("sessionkey: "+sessionKey);
-	    
+	    System.out.println("THE KEY: "+ sessionKey);
 	}
 	
+	private List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
+		byte[] nBytes = n.toByteArray();
+		List<byte[]> res = new ArrayList<byte[]>();
+		byte[] code = new byte[129];
+		
+		code = Arrays.copyOfRange(nBytes, 0, nBytes.length);
+		
+		res.add(code);
+		
+		return res;
+	}
+	
+	private BigInteger collectDHValues() throws IOException{
+		
+		ByteArrayOutputStream aux = new ByteArrayOutputStream();
+		
+		byte[] keys = new byte[129];
+		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length);
+		socket.receive(keysPacket);
+
+		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getData().length));
+		
+		socketClient = keysPacket.getSocketAddress();
+
+		
+		return new BigInteger(aux.toByteArray());
+	}
+	
+	private void sendDHMessage(List<byte[]> byteList) throws IOException, DHMessageException{
+		
+		for(byte[] m: byteList){
+			DatagramPacket keysPacket = new DatagramPacket(m, m.length, socketClient);
+			System.out.println("ENVIADO: "+keysPacket.getData().length);
+			socket.send(keysPacket);
+		}
+	}
 	
 	private boolean validateTimestamp(String msg){
 		String[] content = msg.split("\\|\\|");

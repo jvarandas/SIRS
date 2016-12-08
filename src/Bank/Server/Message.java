@@ -7,6 +7,8 @@ import java.util.Arrays;
 import java.util.Date;
 
 import Bank.Server.Exceptions.AmountException;
+import Bank.Server.Exceptions.DHMessageException;
+import Bank.Server.Exceptions.DataSizeException;
 import Bank.Server.Exceptions.IbanException;
 
 public class Message {
@@ -26,11 +28,12 @@ public class Message {
 
 	//request port to server
 	public Message(){
-		this.ID =  new BigInteger(64, randomizer).longValue();
+		this.ID =  new BigInteger(64, randomizer).abs().longValue();
 		this.type = "request";
 		this.data = "";
 		this.timestamp = new Date();
 	}
+	
 	
 	//response to request port
 	public Message(int port) {
@@ -40,17 +43,16 @@ public class Message {
 		this.timestamp = new Date();
 	}
 
-	//messagge to distribute keys
-	public Message(BigInteger p){
-		this.ID = new BigInteger(64, randomizer).longValue();
-		this.type = "send_keys";
+	//message to distribute keys
+	public Message(String p){
+		this.type = null;
 		setPublicKeys(p);
-		this.timestamp = new Date();
+		this.timestamp = null;
 	}
 	
 	//Association command
-	public Message(String iban, int number) throws IbanException{ 
-		this.ID =  new BigInteger(64, randomizer).longValue();
+	public Message(String iban, int number) throws IbanException, DataSizeException{ 
+		this.ID =  new BigInteger(64, randomizer).abs().longValue();
 		this.type = "associate";
 		setIban(iban);
 		setPhone(number);
@@ -59,8 +61,8 @@ public class Message {
 	
 
 	//Send command
-	public Message(String iban, String amount, int number) throws IbanException, AmountException{
-		this.ID =  new BigInteger(64, randomizer).longValue();
+	public Message(String iban, String amount, int number) throws IbanException, AmountException, DataSizeException{
+		this.ID =  new BigInteger(64, randomizer).abs().longValue();
 		this.type = "send";
 		setIban(iban);
 		setAmount(amount);
@@ -71,7 +73,7 @@ public class Message {
 	
 	//Client send code of matrix card
 	public Message(char[] code){
-		this.ID =  new BigInteger(64, randomizer).longValue();
+		this.ID =  new BigInteger(64, randomizer).abs().longValue();
 		this.type = "codes_answer";
 		this.data = new String(code);
 		this.timestamp = new Date();
@@ -92,7 +94,6 @@ public class Message {
 		setCodes(a,b,c,d);
 		this.timestamp = new Date();
 	}
-	
 
 	private void setCodes(int[] a, int[] b, int[] c, int[] d) {
 		String line = ":column_" + (a[0]+1) + "_line_" + (a[1]+1) + ":";
@@ -116,34 +117,49 @@ public class Message {
 		}
 	}
 	
-	private void setPublicKeys(BigInteger p){
-		this.data = p+"";
+	private void setPublicKeys(String p){
+		this.data = p;
 	}
 	
 	private void setPort(int port) {
 		this.data = "" + port;
 	}
 
-	private void setIban(String iban) throws IbanException{
+	private void setIban(String iban) throws IbanException, DataSizeException{
 		if(verifyIban(iban)){
-			this.data = iban;
+			setData(iban);
 		}
 		else{
 			throw new IbanException(iban);
 		}
 	}
 	
-	private void setPhone(int number) {
-		this.data += " "+number;
-		
+	private void setPhone(int number) throws DataSizeException {
+		String aux;
+		aux = this.data;
+		aux += " "+number;
+		setData(aux);
 	}
 	
-	private void setAmount(String amount) throws AmountException{
+	private void setAmount(String amount) throws AmountException, DataSizeException{
+		
+		String aux;
+		
 		if(verifyAmount(amount)){
-			this.data += " " + amount;
+			aux = this.data;
+			aux += " " + amount;
+			setData(aux);
 		}
 		else{
 			throw new AmountException(amount);
+		}
+	}
+	
+	private void setData(String data) throws DataSizeException{
+		if(data.length()>72)
+			throw new DataSizeException();
+		else{
+			this.data = data;
 		}
 	}
 	
@@ -176,7 +192,7 @@ public class Message {
 		return this.type;
 	}
 	
-	private String getData(){
+	public String getData(){
 		return this.data;
 	}
 	
@@ -187,5 +203,11 @@ public class Message {
 	
 	public String getMessage(){
 		return getType() + "||" + getID() + "||" + getData() + "||" + getTimeStamp();
+	}
+	
+	public String getDHMessage() throws DHMessageException{
+		if(getType()==null)
+			return getData();
+		throw new DHMessageException();
 	}
 }
