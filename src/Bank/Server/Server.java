@@ -298,6 +298,9 @@ class ClientServiceThread extends Thread{
 	
 	private boolean parseMessage(String msg, DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ShortBufferException{				
 		
+		byte[] byteMsg = new byte[120];
+		byteMsg  = Arrays.copyOf(packet.getData(), packet.getLength());
+		
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");
 		String type = content[0];
@@ -309,10 +312,10 @@ class ClientServiceThread extends Thread{
 			return false;
 		}
 			
-		/*if(!validateDigest(received)){
+		if(!validateDigest(byteMsg)){
 			sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 			return false;
-		}*/
+		}
 		if (type.equals("associate")){  //TO register the "phone number" associated with an account 
 			
 			String[] association = data.split(" "); 
@@ -504,14 +507,17 @@ class ClientServiceThread extends Thread{
 	
 	private void step1(DatagramPacket packet) throws InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ShortBufferException, IOException {
 		//try and see if it is a iv_share message
-		byte[] msgBytes = packet.getData();
+		byte[] msgBytes = new byte[120];
+		msgBytes = Arrays.copyOfRange(packet.getData(), 0, packet.getLength());//		packet.getData();
 		
 		String msg = new String(msgBytes);
+		
+		msg = msg.trim();
 		
 		String[] info = msg.split("\\|\\|");
 		
 		if (info[0].equals("iv_share")){
-			System.out.println("Got IV");
+			validateDigest(msgBytes);
 			byte[] iv_Bytes = info[2].getBytes();
 			cbc.setIV(iv_Bytes);
 		}

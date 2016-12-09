@@ -220,7 +220,8 @@ public class Client {
 	private static void associateCommand(String input) throws Exception {
 		
 		Message m = new Message(input, phone_number);
-		System.out.println("Full Message " + m.getMessage());
+
+	//	System.out.println("Full Message " + m.getMessage());
 		sendEncryptedMessage(m);
 		
 	}
@@ -234,27 +235,27 @@ public class Client {
 	}
 	private static void sendEncryptedMessage(Message m) throws InvalidKeyException, NumberFormatException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException, IbanException, AmountException, DataSizeException, IOException {
 		
-		//generate the iv before exchanging the message.
+		m.setKey(sessionKey);
+		
 		generateIV();
 		
-		//return ; /*
 		Long l = m.getID()-2;
-		System.out.println("Message Being Sent " + m.getMessage());
-		byte[] cypherBytes = cbc.encrypt(new String(m.getMessage().getBytes()));
+		
+		byte[] cypherBytes = cbc.encrypt(new String(m.getMessageBytes()));
+		
 		DatagramPacket packet = new DatagramPacket(cypherBytes,cypherBytes.length, addr, port);
 		
 		sendPacket(packet, l);	
 	}
 	
 	private static void sendNonEncryptedMessage(Message m) throws IbanException, AmountException, DataSizeException, InvalidKeyException, NumberFormatException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
-		m.setKey(sessionKey); // digest stuff
 		
 		Long l = m.getID()-2;
-		byte[] msgBytes = m.getMessage().getBytes();
-		System.out.println(m.getMessage());
-		System.out.println("NON ENCRYPTED");
-		System.out.println(msgBytes);
+		
+		byte[] msgBytes = m.getMessageBytes(); //with digest
+		
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
+		
 		sendPacket(packet, l);
 	}
 	
@@ -281,41 +282,11 @@ public class Client {
 		
 		cbc.generateIV();
 		Message m = new Message(cbc.getIV(), true);
+		m.setKey(sessionKey); // digest stuff
 		
 		sendNonEncryptedMessage(m);
 	}
 	
-	/*
-	private static void sendMessage(String input) throws Exception {
-
-		System.out.println("input: "+input.length());
-		String info[] = input.split(" ");
-	
-		Message m = new Message(info[0], info[1], phone_number);
-		m.setKey(sessionKey);
-		
-		Long l = Long.parseLong(new String(m.getMessageBytes()).split("\\|\\|")[1])-2;
-		
-		byte[] msgBytes = cbc.encrypt(new String(m.getMessageBytes()));
-		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
-		
-		socket.send(packet);
-		
-		if(!waitAck(l)){
-			System.out.println("Operation not completed.");
-			return;
-		}
-		
-		if(!confirmIdentity()){
-			System.out.println("Identity not confirmed.");
-			System.out.println("Operation not completed.");
-			return;
-		}
-		
-		System.out.println("Transaction completed with success");
-	}
-	
-	*/
 	private static boolean waitAck(Long l) throws IOException, InvalidKeyException, NoSuchAlgorithmException {
 
 		boolean ackReceived = false;
