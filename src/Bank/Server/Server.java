@@ -288,10 +288,9 @@ class ClientServiceThread extends Thread{
 		return small;
 	}
 	
-	private boolean validateID(String msg){
-		long id = Long.parseLong(msg.split("\\|\\|")[1]);
-		 if (!ID_Bucket.contains(id)){
-			 ID_Bucket.add(id);
+	private boolean validateID(long msgid){
+		 if (!ID_Bucket.contains(msgid)){
+			 ID_Bucket.add(msgid);
 			 return true;
 		 }
 		 else return false;
@@ -302,7 +301,14 @@ class ClientServiceThread extends Thread{
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");
 		String type = content[0];
+		long id = Long.parseLong(content[1]);
 		String data = content[2];
+		
+		if (!validateID(id)){
+			sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
+			return false;
+		}
+			
 		/*if(!validateDigest(received)){
 			sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 			return false;
@@ -392,12 +398,13 @@ class ClientServiceThread extends Thread{
 			
 			String content[] = msg.split("\\|\\|");
 			String type = content[0];
+			long id = Long.parseLong(content[1]);
+			String data = content[2];
 
 			if(!type.equals("codes_answer")){
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 				return false;
 			}
-			String data = content[2];
 			if(!data.equals(code)){
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 				return false;
@@ -407,7 +414,7 @@ class ClientServiceThread extends Thread{
 				return false;
 			}*/
 			
-			if (!validateID(msg)){
+			if (!validateID(id)){
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 				return false;
 			}
@@ -499,13 +506,8 @@ class ClientServiceThread extends Thread{
 		//try and see if it is a iv_share message
 		byte[] msgBytes = packet.getData();
 		
-		System.out.println(msgBytes.toString().trim());
-		
-		return;
-	/*	
 		String msg = new String(msgBytes);
 		
-		System.out.print(msg);
 		String[] info = msg.split("\\|\\|");
 		
 		if (info[0].equals("iv_share")){
@@ -514,10 +516,11 @@ class ClientServiceThread extends Thread{
 			cbc.setIV(iv_Bytes);
 		}
 		else {
+			System.out.println("Decrypting Received Message");
 			byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
 			String message = new String(received);
-			if (validateID(message))
-				parseMessage(message, packet);
+			System.out.println("Message = " + message);
+			parseMessage(message, packet);
 		}			
-	*/}
+	}
 }

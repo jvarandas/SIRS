@@ -220,7 +220,7 @@ public class Client {
 	private static void associateCommand(String input) throws Exception {
 		
 		Message m = new Message(input, phone_number);
-		
+		System.out.println("Full Message " + m.getMessage());
 		sendEncryptedMessage(m);
 		
 	}
@@ -237,9 +237,10 @@ public class Client {
 		//generate the iv before exchanging the message.
 		generateIV();
 		
-		Long l = Long.parseLong(new String(m.getMessageBytes()).split("\\|\\|")[1])-2;
-		
-		byte[] cypherBytes = cbc.encrypt(new String(m.getMessageBytes()));
+		//return ; /*
+		Long l = m.getID()-2;
+		System.out.println("Message Being Sent " + m.getMessage());
+		byte[] cypherBytes = cbc.encrypt(new String(m.getMessage().getBytes()));
 		DatagramPacket packet = new DatagramPacket(cypherBytes,cypherBytes.length, addr, port);
 		
 		sendPacket(packet, l);	
@@ -249,15 +250,16 @@ public class Client {
 		m.setKey(sessionKey); // digest stuff
 		
 		Long l = m.getID()-2;
-		byte[] msgBytes = m.getData().getBytes();
+		byte[] msgBytes = m.getMessage().getBytes();
+		System.out.println(m.getMessage());
 		System.out.println("NON ENCRYPTED");
-		System.out.println(msgBytes.toString());
+		System.out.println(msgBytes);
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		sendPacket(packet, l);
 	}
-	//[B@f76cefd
-	//[B@6979e8cb
+	
 	private static void sendPacket(DatagramPacket packet, long id) throws IOException, InvalidKeyException, NoSuchAlgorithmException, NumberFormatException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
+		
 		socket.send(packet);
 		
 		if(!waitAck(id)){

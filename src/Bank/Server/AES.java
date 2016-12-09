@@ -18,7 +18,8 @@ import javax.crypto.spec.SecretKeySpec;
 public class AES {
 	
 	private SecretKey _key;
-	private byte[] _iv ;
+	private byte[] _iv;
+	//private byte[] _iv = {0 ,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 	
 	public AES(String key){
 		setKey(key);		
