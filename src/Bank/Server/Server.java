@@ -180,7 +180,7 @@ class ClientServiceThread extends Thread{
 	private static SecureRandom randomizer = new SecureRandom();
 	
 	private static BigInteger a = new BigInteger(10, randomizer);
-	private static String sessionKey = "1234567891234567";
+	private static String sessionKey;
 	
 	private static AES cbc;
 	
@@ -196,7 +196,7 @@ class ClientServiceThread extends Thread{
 	public void run() {
 		
 		try {			
-			//generateDHValues();
+			generateDHValues();
 			cbc = new AES(sessionKey);
 			byte[] buffer = new byte[120];
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -230,45 +230,49 @@ class ClientServiceThread extends Thread{
 		
 		BigInteger yA = new BigInteger(10, randomizer);
 		
-		int bitLength = 1024; // 1024 bits
+		int bitLength = 512; // 1024 bits
 	    
 	    a = BigInteger.probablePrime(bitLength, randomizer);
 	    yA = p.modPow(a, q);
 	    
-	    List<byte[]> messages = computeDHMessage(q);
+	    //System.out.println("q enviado: "+q.longValue());
+	    byte[] messages = q.toByteArray();
 	    sendDHMessage(messages);
 	    
-	    
-	    messages = computeDHMessage(yA);
-	    System.out.println(yA);
+	    //System.out.println("yA enviado: "+ yA.longValue());
+	    messages = yA.toByteArray();
 	    sendDHMessage(messages);
 	    
-	    //sessionKey = yB.modPow(a, q);
-	   
-	    System.out.println("THE KEY: "+ sessionKey);
+	    BigInteger resultado = yB.modPow(a, q);
+	    
+	    sessionKey = new String(""+resultado);
+	    
+	    //System.out.println("Chave secreta: "+ resultado.longValue());
+	    
+	    System.out.println("session key: "+sessionKey);
 	}
 	
-	private List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
+	/*private List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
 		byte[] nBytes = n.toByteArray();
 		List<byte[]> res = new ArrayList<byte[]>();
-		byte[] code = new byte[129];
+		byte[] code = new byte[120];
 		
 		code = Arrays.copyOfRange(nBytes, 0, nBytes.length);
 		
 		res.add(code);
 		
 		return res;
-	}
+	}*/
 	
 	private BigInteger collectDHValues() throws IOException{
 		
 		ByteArrayOutputStream aux = new ByteArrayOutputStream();
 		
-		byte[] keys = new byte[129];
+		byte[] keys = new byte[120];
 		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length);
 		socket.receive(keysPacket);
 
-		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getData().length));
+		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getLength()));
 		
 		socketClient = keysPacket.getSocketAddress();
 
@@ -276,12 +280,10 @@ class ClientServiceThread extends Thread{
 		return new BigInteger(aux.toByteArray());
 	}
 	
-	private void sendDHMessage(List<byte[]> byteList) throws IOException, DHMessageException{
+	private void sendDHMessage(byte[] byteList) throws IOException, DHMessageException{
 		
-		for(byte[] m: byteList){
-			DatagramPacket keysPacket = new DatagramPacket(m, m.length, socketClient);
-			socket.send(keysPacket);
-		}
+		DatagramPacket keysPacket = new DatagramPacket(byteList, byteList.length, socketClient);
+		socket.send(keysPacket);
 	}
 	
 	/*private boolean validateTimestamp(String msg){
@@ -396,7 +398,6 @@ class ClientServiceThread extends Thread{
 		
 		return false;
 	}
-	
 	
 	
 	private boolean confirmsIdentity(String iban, DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{

@@ -49,20 +49,22 @@ public class Client {
 	private static SecureRandom randomizer = new SecureRandom();
 	
 	private static BigInteger b = new BigInteger(10, randomizer);
-	private static String sessionKey = "1234567891234567";
+	private static String sessionKey;
 	
 	private static AES cbc;
 	
 	public static void main(String[] args) throws Exception {
-		cbc = new AES(sessionKey);
+		
 		addr = InetAddress.getByName(ServerHost);
 		socket = new DatagramSocket();
-		
 		requestPort();
-		System.out.println("Client started running...");
 		
-		//generateDHPublicValues();
-		//generateDHSecretKey();
+		generateDHPublicValues();
+		generateDHSecretKey();
+		
+		cbc = new AES(sessionKey);
+		
+		System.out.println("Client started running...");
 		
 		in = new Scanner(System.in);
 		
@@ -96,8 +98,8 @@ public class Client {
 	
 	private static void requestPort() throws IOException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
 		Message m = new Message();
-		m.setKey(sessionKey);
-		byte[] msgBytes = m.getMessageBytes();
+		//m.setKey(sessionKey);
+		byte[] msgBytes = m.getMessage().getBytes(); //ALTERADO
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, ServerPort);
 		
 		socket.send(packet);
@@ -139,76 +141,64 @@ public class Client {
 	
 	
 	private static void generateDHPublicValues() throws Exception{
+				
+		BigInteger p = new BigInteger(10, randomizer);
+		BigInteger q = new BigInteger(10, randomizer);
+		BigInteger yB = new BigInteger(10, randomizer);
 		
-		
-		BigInteger p = new BigInteger(10, randomizer).abs();
-		BigInteger q = new BigInteger(10, randomizer).abs();
-		BigInteger yB = new BigInteger(10, randomizer).abs();
-		
-		int bitLength = 1024; // 1024 bits
+		int bitLength = 512; // 1024 bits
 	    
 	    p = BigInteger.probablePrime(bitLength, randomizer);
-	    System.out.println("p: "+p);
+	    //System.out.println("p: "+p.longValue());
 	    
 	    q = BigInteger.probablePrime(bitLength, randomizer);
-	    System.out.println("q: "+q);
+	    //System.out.println("q: "+q.longValue());
 	    
 	    b = BigInteger.probablePrime(bitLength, randomizer);
 	    
 	    yB = p.modPow(b, q);
-	    System.out.println("yB: "+yB);
-	    System.out.println("yB size COUNT= "+yB.bitCount());
-		System.out.println("yB size LENGTH= "+ yB.bitLength());
+	    //System.out.println("yB: "+yB.longValue());
 	    
-	    List<byte[]> messages = computeDHMessage(p);
+	    byte[] messages = p.toByteArray();
 	    sendDHMessage(messages);
 	    
-	    messages = computeDHMessage(q);
+	    messages = q.toByteArray();
 	    sendDHMessage(messages);
 	    
-	    messages = computeDHMessage(yB);
+	    messages = yB.toByteArray();
 	    sendDHMessage(messages);
 	    
 	}
 	
 	
-	private static List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
+	/*private static List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
 		byte[] nBytes = n.toByteArray();
-		System.out.println("numero de bytes: "+nBytes.length);
-		List<byte[]> res = new ArrayList<byte[]>();
-		byte[] code = new byte[129];
+		byte[] code = new byte[120];
+		List<byte[]>  res = new ArrayList<byte[]>();
 		
-		if(nBytes.length == 128){
-			System.arraycopy(nBytes, 0, code, 1, nBytes.length);
-			System.arraycopy("0".getBytes(), 0, code, 0, 1);
-			
-		}
-		else
+		//for(int i=nBytes.length; i>120; i-=120){
 			code = Arrays.copyOfRange(nBytes, 0, nBytes.length);
-		
-		res.add(code);
-		
+			res.add(code);
+		//}
+				
 		return res;
-	}
+	}*/
 	
-	private static void sendDHMessage(List<byte[]> byteList) throws IOException, DHMessageException{
+	private static void sendDHMessage(byte[] byteList) throws IOException, DHMessageException{
 		
-		for(byte[] m: byteList){
-			DatagramPacket keysPacket = new DatagramPacket(m, m.length, addr, port);
-			System.out.println("ENVIADO: "+keysPacket.getData().length);
-			socket.send(keysPacket);
-		}
+		DatagramPacket keysPacket = new DatagramPacket(byteList, byteList.length, addr, port);
+		socket.send(keysPacket);
 	}
 	
 	private static BigInteger collectDHValues() throws IOException{
 		
 		ByteArrayOutputStream aux = new ByteArrayOutputStream();
 		
-		byte[] keys = new byte[129];
+		byte[] keys = new byte[120];
 		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length); 
 		socket.receive(keysPacket);
 		
-		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getData().length));
+		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getLength()));
 		
 		return new BigInteger(aux.toByteArray());
 	}
@@ -216,13 +206,18 @@ public class Client {
 	private static void generateDHSecretKey() throws IOException{
 		
 		BigInteger q = collectDHValues();
-		System.out.println("q recebido:" +q);
+		//System.out.println("q recebido:" +q.longValue());
 		
 		BigInteger yA = collectDHValues();
+		//System.out.println("yA recebido:" +yA.longValue());
 		
-		//sessionKey = yA.modPow(b, q);
+		BigInteger resultado = yA.modPow(b, q);
 		
-		//System.out.println(sessionKey);
+		//System.out.println("Chave Secreta: "+ resultado.longValue());
+		
+		sessionKey = new String(""+resultado);
+		
+		System.out.println("session key: "+sessionKey);
 		
 	}
 	
@@ -252,23 +247,6 @@ public class Client {
 			return;
 		}
 	}
-
-	/*private static String encryptMessage(String str) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, UnsupportedEncodingException{
-		
-		String encripted= new String();
-		int i;
-		
-		for(i=0; i+16<str.length(); i+=16){
-			encripted += cbc.encrypt(str.substring(i, i+16));
-		}
-		
-		while(i<str.length()){
-			encripted += "*";
-			i++;
-		}
-		
-		return encripted;
-	}*/
 
 	private static void sendMessage(String input) throws Exception {
 

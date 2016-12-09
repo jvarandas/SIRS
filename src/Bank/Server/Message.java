@@ -31,7 +31,7 @@ public class Message {
 	private long ID;
 	private String type;
 	private String data;
-	private String key;
+	private String key = null;
 	
 	private static SecureRandom randomizer = new SecureRandom(); 
 
@@ -217,7 +217,7 @@ public class Message {
 	}
 	
 	
-	private String getMessage(){
+	public String getMessage(){
 		return getType() + "||" + getID() + "||" + getData() +"||";
 	}
 	
