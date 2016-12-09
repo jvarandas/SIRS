@@ -2,17 +2,12 @@ package Bank.Server;
 
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
-
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import sun.misc.BASE64Encoder;
 import Bank.Server.Exceptions.AmountException;
 import Bank.Server.Exceptions.DHMessageException;
 import Bank.Server.Exceptions.DataSizeException;
@@ -80,6 +75,12 @@ public class Message {
 		this.data = new String(code);
 	}
 	
+	public Message(byte[] iv, boolean t){
+		ID = new BigInteger(64, randomizer).abs().longValue();
+		type = "iv_share";
+		data = new String(iv);
+		
+	}
 	
 	//Acknowledge message
 	public Message(byte[] ack){
@@ -202,7 +203,7 @@ public class Message {
 		this.ID = id;
 	}
 	
-	private long getID(){
+	public long getID(){
 		return this.ID;
 	}
 	

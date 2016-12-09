@@ -15,20 +15,10 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -38,10 +28,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.crypto.spec.DHParameterSpec;
-import javax.crypto.spec.DHPublicKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import Bank.Server.Exceptions.DHMessageException;
@@ -91,6 +78,7 @@ public class Server {
 				parseMessage(packet);
 			}*/
 		}
+		
 	}
 	
 	private static void createUser(String writtenCommand) throws IOException {
@@ -193,27 +181,25 @@ class ClientServiceThread extends Thread{
 	@Override
 	public void run() {
 		
+		cbc = new AES(sessionKey);
+		byte[] buffer = new byte[120];
+		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
 		try {			
-			//generateDHValues();
-			cbc = new AES(sessionKey);
-			byte[] buffer = new byte[120];
-			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-		
 			socket.setSoTimeout(0);
+			//generateDHValues();
 			while(true){
 				socket.receive(packet);
-				System.out.println(packet.getData().length);
-				byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
-				String message = new String(received);
-				if (validateID(message)){
-					parseMessage(packet);
-				}
-			}		
-		} catch (SocketException e) {
+				step1(packet);
+			}	
+		}
+		catch (SocketException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
+		} 
+		catch (IOException e) {
 			e.printStackTrace();
-		} catch (Exception e) {
+		} 
+		catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -282,26 +268,6 @@ class ClientServiceThread extends Thread{
 		}
 	}
 	
-	/*private boolean validateTimestamp(String msg){
-		String[] content = msg.split("\\|\\|");
-		String date = content[content.length-1].substring(0, 19);
-		Date timestamp;
-		try {
-			SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			timestamp = parser.parse(date);
-			LocalDateTime current_time = LocalDateTime.now();
-			LocalDateTime limit_time = current_time.minusSeconds(Max_Time_Diff);
-			LocalDateTime stamp = LocalDateTime.ofInstant(timestamp.toInstant(), ZoneId.systemDefault());
-			if (stamp.isAfter(limit_time) && stamp.isBefore(current_time))
-				return true;
-			else 
-				return false;
-		} catch (ParseException e) {
-			System.out.println("erro no parse" + e.getErrorOffset());
-			return false;
-		}
-	}*/
-	
 	private boolean validateDigest(byte[] msg) throws NoSuchAlgorithmException, InvalidKeyException{
 		int index = new String(msg).lastIndexOf('|');
 		byte[] original = Arrays.copyOfRange(msg, index, msg.length);
@@ -331,10 +297,7 @@ class ClientServiceThread extends Thread{
 		 else return false;
 	}
 	
-	private boolean parseMessage(DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ShortBufferException{				
-		byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
-		
-		String msg = new String(received);
+	private boolean parseMessage(String msg, DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ShortBufferException{				
 		
 		SocketAddress sender = packet.getSocketAddress();
 		String[] content = msg.split("\\|\\|");
@@ -394,8 +357,6 @@ class ClientServiceThread extends Thread{
 		
 		return false;
 	}
-	
-	
 	
 	private boolean confirmsIdentity(String iban, DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
 		ArrayList<String> matrix = (ArrayList<String>) ClientsMatrix.get(iban);
@@ -502,7 +463,6 @@ class ClientServiceThread extends Thread{
 	    System.out.println("Sent ack");
 	}
 
-
 	private void confFile() throws IOException{
 		
 		BufferedWriter output = null;
@@ -534,4 +494,30 @@ class ClientServiceThread extends Thread{
 		}
 	}
 
+	
+	private void step1(DatagramPacket packet) throws InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ShortBufferException, IOException {
+		//try and see if it is a iv_share message
+		byte[] msgBytes = packet.getData();
+		
+		System.out.println(msgBytes.toString().trim());
+		
+		return;
+	/*	
+		String msg = new String(msgBytes);
+		
+		System.out.print(msg);
+		String[] info = msg.split("\\|\\|");
+		
+		if (info[0].equals("iv_share")){
+			System.out.println("Got IV");
+			byte[] iv_Bytes = info[2].getBytes();
+			cbc.setIV(iv_Bytes);
+		}
+		else {
+			byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
+			String message = new String(received);
+			if (validateID(message))
+				parseMessage(message, packet);
+		}			
+	*/}
 }
