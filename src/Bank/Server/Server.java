@@ -255,17 +255,6 @@ class ClientServiceThread extends Thread{
 	    System.out.println("session key: "+sessionKey);
 	}
 	
-	/*private List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
-		byte[] nBytes = n.toByteArray();
-		List<byte[]> res = new ArrayList<byte[]>();
-		byte[] code = new byte[120];
-		
-		code = Arrays.copyOfRange(nBytes, 0, nBytes.length);
-		
-		res.add(code);
-		
-		return res;
-	}*/
 	
 	private BigInteger collectDHValues() throws IOException{
 		
@@ -289,25 +278,6 @@ class ClientServiceThread extends Thread{
 		socket.send(keysPacket);
 	}
 	
-	/*private boolean validateTimestamp(String msg){
-		String[] content = msg.split("\\|\\|");
-		String date = content[content.length-1].substring(0, 19);
-		Date timestamp;
-		try {
-			SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			timestamp = parser.parse(date);
-			LocalDateTime current_time = LocalDateTime.now();
-			LocalDateTime limit_time = current_time.minusSeconds(Max_Time_Diff);
-			LocalDateTime stamp = LocalDateTime.ofInstant(timestamp.toInstant(), ZoneId.systemDefault());
-			if (stamp.isAfter(limit_time) && stamp.isBefore(current_time))
-				return true;
-			else 
-				return false;
-		} catch (ParseException e) {
-			System.out.println("erro no parse" + e.getErrorOffset());
-			return false;
-		}
-	}*/
 	
 	private boolean validateDigest(byte[] msg) throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException{
 		int index = new String(msg).lastIndexOf('|');
@@ -352,17 +322,11 @@ class ClientServiceThread extends Thread{
 			return false;
 		}
 		
-		if(!validateDigest(byteMsg)){
-			sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
-			return false;
-		}
-		
-		/*
-		if(!validateDigest(received)){
-			sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
-			return false;
-		}
-		*/
+//		if(!validateDigest(byteMsg)){
+//			sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
+//			return false;
+//		}
+//		
 		if (type.equals("associate")){  //TO register the "phone number" associated with an account 
 			
 			String[] association = data.split(" "); 
@@ -462,10 +426,10 @@ class ClientServiceThread extends Thread{
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 				return false;
 			}
-			if(!validateDigest(received)){
-				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1]));
-				return false;
-			}
+//			if(!validateDigest(received)){
+//				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1]));
+//				return false;
+//			}
 			
 			if (!validateID(msgID)){
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
@@ -514,14 +478,14 @@ class ClientServiceThread extends Thread{
 	}
 	
 	private void sendAck(InetAddress address, int port, byte[] ackPacket, long ID) throws IOException, NoSuchAlgorithmException, InvalidKeyException{
-		System.out.println(ackPacket);
+		
 		Message ack = new Message(ackPacket);
 		ack.setKey(sessionKey);
 		ack.setID(ID);
 		byte[] bytesAck = ack.getMessageBytes();
 	    DatagramPacket acknowledgement = new  DatagramPacket(bytesAck, bytesAck.length, address, port);
 	    socket.send(acknowledgement);
-	    System.out.println("Sent ack");
+	    System.out.println("Sent ack "+ ID);
 	}
 
 
@@ -568,9 +532,11 @@ class ClientServiceThread extends Thread{
 		String[] info = msg.split("\\|\\|");
 		
 		if (info[0].equals("iv_share")){
-			validateDigest(msgBytes);
+			System.out.println("GOT IV");
+			//validateDigest(msgBytes);
 			byte[] iv_Bytes = info[2].getBytes();
 			cbc.setIV(iv_Bytes);
+			sendAck(packet.getAddress(), packet.getPort() , Confirmation_Ack, Long.parseLong(info[1])-2);
 		}
 		else {
 			System.out.println("Decrypting Received Message");
