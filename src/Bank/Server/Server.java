@@ -246,6 +246,7 @@ class ClientServiceThread extends Thread{
 	    BigInteger resultado = yB.modPow(a, q);
 	    
 	    sessionKey = new String(""+resultado);
+	    sessionKey = sessionKey.substring(0, 16);
 	    
 	    //System.out.println("Chave secreta: "+ resultado.longValue());
 	    
