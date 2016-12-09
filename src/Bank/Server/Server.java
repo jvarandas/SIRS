@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -46,6 +47,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import Bank.Server.Exceptions.DHMessageException;
 import Bank.Server.Exceptions.DataSizeException;
+import javafx.util.converter.ByteStringConverter;
 
 
 
@@ -305,17 +307,17 @@ class ClientServiceThread extends Thread{
 		}
 	}*/
 	
-	private boolean validateDigest(byte[] msg) throws NoSuchAlgorithmException, InvalidKeyException{
+	private boolean validateDigest(byte[] msg) throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException{
 		int index = new String(msg).lastIndexOf('|');
-		byte[] original = Arrays.copyOfRange(msg, index, msg.length);
-		byte[] received = calculateDigest(new String(msg).substring(0, index));
+		byte[] original =Arrays.copyOfRange(msg, index+1, msg.length);
+		byte[] received = calculateDigest(new String(msg).substring(0, index+1));
 		if(Arrays.equals(original, received)){
 			return true;
 		}
 		return false;
 	}
 	
-	private byte[] calculateDigest(String msg) throws NoSuchAlgorithmException, InvalidKeyException{
+	private byte[] calculateDigest(String msg) throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException{
 		SecretKeySpec keySpec = new SecretKeySpec(sessionKey.getBytes(),"HmacSHA256");
 		Mac m = Mac.getInstance("HmacSHA256");
 		m.init(keySpec);
@@ -343,10 +345,10 @@ class ClientServiceThread extends Thread{
 		String[] content = msg.split("\\|\\|");
 		String type = content[0];
 		String data = content[2];
-		/*if(!validateDigest(received)){
+		if(!validateDigest(received)){
 			sendAck(packet.getAddress(), packet.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 			return false;
-		}*/
+		}
 		if (type.equals("associate")){  //TO register the "phone number" associated with an account 
 			
 			String[] association = data.split(" "); 
@@ -443,10 +445,10 @@ class ClientServiceThread extends Thread{
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
 				return false;
 			}
-			/*if(!validateDigest(received)){
+			if(!validateDigest(received)){
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1]));
 				return false;
-			}*/
+			}
 			
 			if (!validateID(msg)){
 				sendAck(codePacket.getAddress(), codePacket.getPort(), Not_Authorized_Ack, Long.parseLong(content[1])-2);
