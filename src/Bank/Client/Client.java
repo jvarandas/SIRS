@@ -7,28 +7,18 @@ import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
-import java.util.Date;
-import java.util.List;
-import java.util.Random;
 import java.util.Scanner;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import Bank.Server.AES;
@@ -74,7 +64,9 @@ public class Client {
 			if(input.toLowerCase().startsWith("send ")){
 				try {
 					String writtenCommand = input.substring(input.indexOf(" ")+1, input.length());
-					sendMessage(writtenCommand);
+					
+					sendEncryptedMessage(writtenCommand);
+				
 				} catch (Exception e) {
 					System.out.println(e.getMessage());
 				}
@@ -120,7 +112,6 @@ public class Client {
 		
 	}
 
-	
 	public static void setPhoneNumber(){
 
 		String input = new String();
@@ -138,7 +129,6 @@ public class Client {
 			}
 		}
 	}
-	
 	
 	private static void generateDHPublicValues() throws Exception{
 				
@@ -202,12 +192,75 @@ public class Client {
 		//System.out.println("Chave Secreta: "+ resultado.longValue());
 		
 		sessionKey = new String(""+resultado);
-		sessionKey = sessionKey.substring(0, 32);
+		sessionKey = sessionKey.substring(0, 16);
 		
 		System.out.println("session key: "+sessionKey);
 		
 	}
 	
+	private static void associateCommand(String input) throws Exception{
+		Message m = new Message(input, phone_number);
+		sendEncryptedMessage(m);
+	}
+	
+	private static void sendEncryptedMessage(String input) throws IbanException, AmountException, DataSizeException, InvalidKeyException, NumberFormatException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException{
+		String info[] = input.split(" ");
+		Message m = new Message(info[0], info[1], phone_number);
+		sendEncryptedMessage(m);
+	}
+	
+	private static void sendEncryptedMessage(Message m) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, NumberFormatException, IOException, IbanException, AmountException, DataSizeException{
+		m.setKey(sessionKey);
+		generateIV();
+		
+		Long l = m.getID() - 2;
+	
+		byte[] cypherBytes = cbc.encrypt(new String(m.getMessageBytes()));
+		
+		DatagramPacket packet = new DatagramPacket(cypherBytes,cypherBytes.length, addr, port);
+		
+		sendPacket(packet, l);	
+	}
+	
+	private static void sendNonEncryptedMessage(Message m) throws IbanException, AmountException, DataSizeException, InvalidKeyException, NumberFormatException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
+		
+		Long l = m.getID()-2;
+		
+		byte[] msgBytes = m.getMessageBytes(); //with digest
+		
+		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
+		
+		sendPacket(packet, l);
+	}
+	
+	private static void sendPacket(DatagramPacket packet, long id) throws IOException, InvalidKeyException, NoSuchAlgorithmException, NumberFormatException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
+		
+		socket.send(packet);
+		
+		if(!waitAck(id)){
+			System.out.println("Operation not completed.");
+			return;
+		}
+		
+		if(!confirmIdentity()){
+			System.out.println("Identity not confirmed.");
+			System.out.println("Operation not completed.");
+			return;
+		}
+		
+		System.out.println("Transaction completed with success");
+		
+	}
+	
+	private static void generateIV() throws InvalidKeyException, NumberFormatException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException, IbanException, AmountException, DataSizeException, IOException{
+		
+		cbc.generateIV();
+		Message m = new Message(cbc.getIV(), true);
+		m.setKey(sessionKey); // digest stuff
+		
+		sendNonEncryptedMessage(m);
+	}
+	/*
 	private static void associateCommand(String input) throws Exception {
 		Message m = new Message(input, phone_number);
 		m.setKey(sessionKey);
@@ -234,6 +287,7 @@ public class Client {
 			return;
 		}
 	}
+	*/
 
 	private static void sendMessage(String input) throws Exception {
 
@@ -280,8 +334,11 @@ public class Client {
 				socket.setSoTimeout(1000);
 				socket.receive(ackpacket);
 				//socket.setSoTimeout(0);
+				
 				byte[] received = Arrays.copyOf(ackpacket.getData(), ackpacket.getLength());
+				
 				String content[] = new String(received).split("\\|\\|");
+				
 				if(!validateDigest(received)){
 					return false;
 				}

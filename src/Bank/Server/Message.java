@@ -89,6 +89,13 @@ public class Message {
 		setAck(ack);
 	}
 	
+	// Iv message
+	public Message(byte[] iv, boolean t){
+		ID = new BigInteger(64, randomizer).abs().longValue();
+		type = "iv_share";
+		data = new String(iv);
+	}
+	
 	//Server sends positions of matrix card
 	public Message(int[] a, int[] b, int[] c, int[] d){
 		this.ID =  new BigInteger(64, randomizer).longValue();
@@ -204,7 +211,7 @@ public class Message {
 		this.ID = id;
 	}
 	
-	private long getID(){
+	public long getID(){
 		return this.ID;
 	}
 	

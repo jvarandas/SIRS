@@ -20,12 +20,12 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class AES {
 	
-	int _keyLength;
+	//int _keyLength;
 	SecretKey _key;
-	byte[] _iv = { 0, 1 , 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	byte[] _iv;
 	
 	public AES(String key){
-		_keyLength = 256;
+		//_keyLength = 256;
 		setKey(key);
 		//setIV(iv);
 		
@@ -38,16 +38,16 @@ public class AES {
 		_key = new SecretKeySpec(key.getBytes(), 0, key.getBytes().length, "AES"); 
 	}
 	
-	private void setIV(byte[] iv){ _iv = iv;}
+	void setIV(byte[] iv){ _iv = iv;}
 
 	
 	public byte[] generateIV(){
 
-		final int AES_KEYLENGTH = _keyLength;	// change this as desired for the security level you want
-		byte[] iv = new byte[AES_KEYLENGTH / 8];	// Save the IV bytes or send it in plaintext with the encrypted data so you can decrypt the data later
+	//	final int AES_KEYLENGTH = _keyLength;	// change this as desired for the security level you want
+		byte[] iv = new byte[16];	// Save the IV bytes or send it in plaintext with the encrypted data so you can decrypt the data later
 		SecureRandom prng = new SecureRandom();
 		prng.nextBytes(iv);
-		
+		_iv = iv;
 		return iv;
 	}
 	
