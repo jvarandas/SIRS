@@ -190,7 +190,7 @@ class ClientServiceThread extends Thread{
 	public void run() {
 		
 		try {			
-			//generateDHValues();
+			generateDHValues();
 			cbc = new AES(sessionKey);
 			byte[] buffer = new byte[120];
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -237,7 +237,7 @@ class ClientServiceThread extends Thread{
 	    System.out.println(yA);
 	    sendDHMessage(messages);
 	    
-	    //sessionKey = yB.modPow(a, q);
+	    sessionKey = new String(""+yB.modPow(a, q));
 	   
 	    System.out.println("THE KEY: "+ sessionKey);
 	}
@@ -245,7 +245,7 @@ class ClientServiceThread extends Thread{
 	private List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
 		byte[] nBytes = n.toByteArray();
 		List<byte[]> res = new ArrayList<byte[]>();
-		byte[] code = new byte[129];
+		byte[] code = new byte[120];
 		
 		code = Arrays.copyOfRange(nBytes, 0, nBytes.length);
 		
@@ -258,11 +258,11 @@ class ClientServiceThread extends Thread{
 		
 		ByteArrayOutputStream aux = new ByteArrayOutputStream();
 		
-		byte[] keys = new byte[129];
+		byte[] keys = new byte[120];
 		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length);
 		socket.receive(keysPacket);
 
-		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getData().length));
+		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getLength()));
 		
 		socketClient = keysPacket.getSocketAddress();
 
@@ -277,26 +277,6 @@ class ClientServiceThread extends Thread{
 			socket.send(keysPacket);
 		}
 	}
-	
-	/*private boolean validateTimestamp(String msg){
-		String[] content = msg.split("\\|\\|");
-		String date = content[content.length-1].substring(0, 19);
-		Date timestamp;
-		try {
-			SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			timestamp = parser.parse(date);
-			LocalDateTime current_time = LocalDateTime.now();
-			LocalDateTime limit_time = current_time.minusSeconds(Max_Time_Diff);
-			LocalDateTime stamp = LocalDateTime.ofInstant(timestamp.toInstant(), ZoneId.systemDefault());
-			if (stamp.isAfter(limit_time) && stamp.isBefore(current_time))
-				return true;
-			else 
-				return false;
-		} catch (ParseException e) {
-			System.out.println("erro no parse" + e.getErrorOffset());
-			return false;
-		}
-	}*/
 	
 	private boolean validateID(String msg){
 		long id = Long.parseLong(msg.split("\\|\\|")[1]);
@@ -367,7 +347,6 @@ class ClientServiceThread extends Thread{
 		
 		return false;
 	}
-	
 	
 	
 	private boolean confirmsIdentity(String iban, DatagramPacket packet) throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
