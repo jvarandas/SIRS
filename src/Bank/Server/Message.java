@@ -1,11 +1,18 @@
 package Bank.Server;
 
 import java.math.BigInteger;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import sun.misc.BASE64Encoder;
 import Bank.Server.Exceptions.AmountException;
 import Bank.Server.Exceptions.DHMessageException;
 import Bank.Server.Exceptions.DataSizeException;
@@ -22,6 +29,7 @@ public class Message {
 	private long ID;
 	private String type;
 	private String data;
+	private byte[] key;
 	
 	private static SecureRandom randomizer = new SecureRandom(); 
 
@@ -94,6 +102,25 @@ public class Message {
 		this.data = line;
 	}
 	
+	private byte[] getDigest() throws NoSuchAlgorithmException, InvalidKeyException{
+		SecretKeySpec keySpec = new SecretKeySpec(key,"HmacSHA256");
+		Mac m = Mac.getInstance("SHA-256");
+		m.init(keySpec);
+		byte[] hash = m.doFinal(this.getAll());
+		byte[] small = new byte[8];
+		small = Arrays.copyOfRange(hash, 0, 8);
+		return small;
+	}
+	
+	public void setKey(byte[] key){
+		this.key = key;
+	}
+	
+	private byte[] getAll() {
+		return this.getMessage().getBytes();
+	}
+
+
 	private void setAck(byte[] ack) {
 		if(Arrays.equals(ack, Confirmation_Ack)){
 			this.data = "confirmed";
@@ -188,7 +215,7 @@ public class Message {
 	}
 	
 	
-	public String getMessage(){
+	private String getMessage(){
 		return getType() + "||" + getID() + "||" + getData() +"||";
 	}
 	
@@ -196,5 +223,12 @@ public class Message {
 		if(getType()==null)
 			return getData();
 		throw new DHMessageException();
+	}
+	
+	public byte[] getMessageBytes() throws NoSuchAlgorithmException, InvalidKeyException{
+		byte[] message = new byte[getMessage().getBytes().length+getDigest().length];
+		System.arraycopy(getMessage().getBytes(), 0, message, 0, getMessage().getBytes().length);
+		System.arraycopy(getDigest(), 0, message, getMessage().getBytes().length, getDigest().length);
+		return message;
 	}
 }
