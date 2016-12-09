@@ -315,11 +315,11 @@ public class Client {
 				socket.setSoTimeout(1000);
 				socket.receive(ackpacket);
 				//socket.setSoTimeout(0);
-
-				String content[] = new String(ackpacket.getData()).split("\\|\\|");
-				/*if(!validateDigest(ackpacket.getData())){
+				byte[] received = Arrays.copyOf(ackpacket.getData(), ackpacket.getLength());
+				String content[] = new String(received).split("\\|\\|");
+				if(!validateDigest(received)){
 					return false;
-				}*/
+				}
 				
 				if(content[0].equals("ack")){
 					String client_info = "";
@@ -359,7 +359,6 @@ public class Client {
 		
 		byte[] codes = new byte[120];
 		DatagramPacket codePacket = new DatagramPacket(codes, codes.length);
-		
 		try {
 			socket.setSoTimeout(10000);
 			socket.receive(codePacket);
@@ -371,14 +370,15 @@ public class Client {
 			System.out.println("Operation canceled");
 			return false;
 		}
-		String content[] = new String(codePacket.getData()).split("\\|\\|");
-		
+		byte[] received = Arrays.copyOf(codePacket.getData(), codePacket.getLength());
+		String content[] = new String(received).split("\\|\\|");
+		System.out.println(new String(received));
 		if(!content[0].equals("codes")){
 			return false;
 		}
-		/*if(!validateDigest(codePacket.getData())){
+		if(!validateDigest(received)){
 			return false;
-		}*/		
+		}	
 		
 		System.out.println(content[2]);
 		Scanner in2 = new Scanner(System.in);
@@ -406,8 +406,8 @@ public class Client {
 	
 	private static boolean validateDigest(byte[] msg) throws NoSuchAlgorithmException, InvalidKeyException{
 		int index = new String(msg).lastIndexOf('|');
-		byte[] original = Arrays.copyOfRange(msg, index, msg.length);
-		byte[] received = calculateDigest(new String(msg).substring(0, index));
+		byte[] original =Arrays.copyOfRange(msg, index+1, msg.length);
+		byte[] received = calculateDigest(new String(msg).substring(0, index+1));
 		if(Arrays.equals(original, received)){
 			return true;
 		}

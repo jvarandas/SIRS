@@ -1,5 +1,6 @@
 package Bank.Server;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
@@ -7,6 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 
 import javax.crypto.Mac;
@@ -102,7 +104,7 @@ public class Message {
 		this.data = line;
 	}
 	
-	private byte[] getDigest() throws NoSuchAlgorithmException, InvalidKeyException{
+	private byte[] getDigest() throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException{
 		SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(),"HmacSHA256");
 		Mac m = Mac.getInstance("HmacSHA256");
 		m.init(keySpec);
@@ -225,7 +227,7 @@ public class Message {
 		throw new DHMessageException();
 	}
 	
-	public byte[] getMessageBytes() throws NoSuchAlgorithmException, InvalidKeyException{
+	public byte[] getMessageBytes() throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException{
 		byte[] message = new byte[getMessage().getBytes().length+getDigest().length];
 		System.arraycopy(getMessage().getBytes(), 0, message, 0, getMessage().getBytes().length);
 		System.arraycopy(getDigest(), 0, message, getMessage().getBytes().length, getDigest().length);
