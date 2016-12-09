@@ -29,7 +29,7 @@ public class Message {
 	private long ID;
 	private String type;
 	private String data;
-	private byte[] key;
+	private String key;
 	
 	private static SecureRandom randomizer = new SecureRandom(); 
 
@@ -103,8 +103,8 @@ public class Message {
 	}
 	
 	private byte[] getDigest() throws NoSuchAlgorithmException, InvalidKeyException{
-		SecretKeySpec keySpec = new SecretKeySpec(key,"HmacSHA256");
-		Mac m = Mac.getInstance("SHA-256");
+		SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(),"HmacSHA256");
+		Mac m = Mac.getInstance("HmacSHA256");
 		m.init(keySpec);
 		byte[] hash = m.doFinal(this.getAll());
 		byte[] small = new byte[8];
@@ -112,8 +112,8 @@ public class Message {
 		return small;
 	}
 	
-	public void setKey(byte[] key){
-		this.key = key;
+	public void setKey(String sessionKey){
+		this.key = sessionKey;
 	}
 	
 	private byte[] getAll() {

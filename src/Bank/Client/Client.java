@@ -94,8 +94,9 @@ public class Client {
 		in.close();
 	}
 	
-	private static void requestPort() throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+	private static void requestPort() throws IOException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
 		Message m = new Message();
+		m.setKey(sessionKey);
 		byte[] msgBytes = m.getMessageBytes();
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, ServerPort);
 		
@@ -227,16 +228,17 @@ public class Client {
 	
 	private static void associateCommand(String input) throws Exception {
 		Message m = new Message(input, phone_number);
+		m.setKey(sessionKey);
 		
 		System.out.println("input: "+input.length());
 		//String info[] = input.split(" ");
 		
-		//String encripted = cbc.encrypt(m.getMessage());
-		//System.out.println("Encripted: "+encripted.length());
+		byte[] msgBytes = cbc.encrypt(new String(m.getMessageBytes()));
+		System.out.println("len: "+msgBytes.length);
 		
-		byte[] msgBytes = m.getMessageBytes();
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		socket.send(packet);
+		
 		Long l = Long.parseLong(new String(m.getMessageBytes()).split("\\|\\|")[1])-2;
 		
 		if(!waitAck(l)){
@@ -251,7 +253,7 @@ public class Client {
 		}
 	}
 
-	private static String encryptMessage(String str) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, UnsupportedEncodingException{
+	/*private static String encryptMessage(String str) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, UnsupportedEncodingException{
 		
 		String encripted= new String();
 		int i;
@@ -266,7 +268,7 @@ public class Client {
 		}
 		
 		return encripted;
-	}
+	}*/
 
 	private static void sendMessage(String input) throws Exception {
 
@@ -275,16 +277,11 @@ public class Client {
 		String info[] = input.split(" ");
 	
 		Message m = new Message(info[0], info[1], phone_number);
+		m.setKey(sessionKey);
 		
-		//String encripted = encryptMessage(m.getMessage());
-		
-		//System.out.println("Encripted: "+encripted.length());
-		
-		//byte[] msgBytes = m.getMessage().getBytes();
 		Long l = Long.parseLong(new String(m.getMessageBytes()).split("\\|\\|")[1])-2;
-		byte[] msgBytes = m.getMessageBytes();
 		
-
+		byte[] msgBytes = cbc.encrypt(new String(m.getMessageBytes()));
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		
 		socket.send(packet);
@@ -320,9 +317,9 @@ public class Client {
 				//socket.setSoTimeout(0);
 
 				String content[] = new String(ackpacket.getData()).split("\\|\\|");
-				if(!validateDigest(ackpacket.getData())){
+				/*if(!validateDigest(ackpacket.getData())){
 					return false;
-				}
+				}*/
 				
 				if(content[0].equals("ack")){
 					String client_info = "";
@@ -358,7 +355,7 @@ public class Client {
 		return false;
 	}
 	
-	private static boolean confirmIdentity() throws IOException, NoSuchAlgorithmException, NumberFormatException, InvalidKeyException {
+	private static boolean confirmIdentity() throws IOException, NoSuchAlgorithmException, NumberFormatException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
 		
 		byte[] codes = new byte[120];
 		DatagramPacket codePacket = new DatagramPacket(codes, codes.length);
@@ -379,17 +376,21 @@ public class Client {
 		if(!content[0].equals("codes")){
 			return false;
 		}
-		if(!validateDigest(codePacket.getData())){
+		/*if(!validateDigest(codePacket.getData())){
 			return false;
-		}		
+		}*/		
 		
 		System.out.println(content[2]);
 		Scanner in2 = new Scanner(System.in);
 		String input = in2.nextLine();
 		char[] code = input.toCharArray();
 		Message m = new Message(code);
+		m.setKey(sessionKey);
+		
 		in = in2;
-		byte[] answer = m.getMessageBytes();
+		
+		byte[] answer = cbc.encrypt(new String(m.getMessageBytes()));
+		
 		DatagramPacket answerPacket = new DatagramPacket(answer, answer.length, addr, port);
 		socket.send(answerPacket);
 		
@@ -415,7 +416,7 @@ public class Client {
 	
 	private static byte[] calculateDigest(String msg) throws NoSuchAlgorithmException, InvalidKeyException{
 		SecretKeySpec keySpec = new SecretKeySpec(sessionKey.getBytes(),"HmacSHA256");
-		Mac m = Mac.getInstance("SHA-256");
+		Mac m = Mac.getInstance("HmacSHA256");
 		m.init(keySpec);
 		byte[] hash = m.doFinal(msg.getBytes());
 		byte[] small = new byte[8];
