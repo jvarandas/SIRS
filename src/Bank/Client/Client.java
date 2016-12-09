@@ -170,20 +170,6 @@ public class Client {
 	    
 	}
 	
-	
-	/*private static List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
-		byte[] nBytes = n.toByteArray();
-		byte[] code = new byte[120];
-		List<byte[]>  res = new ArrayList<byte[]>();
-		
-		//for(int i=nBytes.length; i>120; i-=120){
-			code = Arrays.copyOfRange(nBytes, 0, nBytes.length);
-			res.add(code);
-		//}
-				
-		return res;
-	}*/
-	
 	private static void sendDHMessage(byte[] byteList) throws IOException, DHMessageException{
 		
 		DatagramPacket keysPacket = new DatagramPacket(byteList, byteList.length, addr, port);
@@ -216,7 +202,7 @@ public class Client {
 		//System.out.println("Chave Secreta: "+ resultado.longValue());
 		
 		sessionKey = new String(""+resultado);
-		sessionKey = sessionKey.substring(0, 16);
+		sessionKey = sessionKey.substring(0, 32);
 		
 		System.out.println("session key: "+sessionKey);
 		
