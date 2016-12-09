@@ -535,6 +535,7 @@ class ClientServiceThread extends Thread{
 			System.out.println("GOT IV");
 			//validateDigest(msgBytes);
 			byte[] iv_Bytes = info[2].getBytes();
+			System.out.write(iv_Bytes);
 			cbc.setIV(iv_Bytes);
 			sendAck(packet.getAddress(), packet.getPort() , Confirmation_Ack, Long.parseLong(info[1])-2);
 		}

@@ -19,6 +19,7 @@ import Bank.Server.Exceptions.AmountException;
 import Bank.Server.Exceptions.DHMessageException;
 import Bank.Server.Exceptions.DataSizeException;
 import Bank.Server.Exceptions.IbanException;
+import sun.misc.BASE64Encoder;
 
 public class Message {
 	
