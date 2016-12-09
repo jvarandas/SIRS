@@ -216,7 +216,7 @@ public class Client {
 		//System.out.println("Chave Secreta: "+ resultado.longValue());
 		
 		sessionKey = new String(""+resultado);
-		sessionKey = sessionKey.substring(0, 16);
+		sessionKey = sessionKey.substring(0, 32);
 		
 		System.out.println("session key: "+sessionKey);
 		
