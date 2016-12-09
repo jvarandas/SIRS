@@ -217,7 +217,7 @@ public class Message {
 	}
 	
 	
-	public String getMessage(){
+	private String getMessage(){
 		return getType() + "||" + getID() + "||" + getData() +"||";
 	}
 	

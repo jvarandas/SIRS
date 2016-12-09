@@ -98,8 +98,8 @@ public class Client {
 	
 	private static void requestPort() throws IOException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
 		Message m = new Message();
-		//m.setKey(sessionKey);
-		byte[] msgBytes = m.getMessage().getBytes(); //ALTERADO
+		m.setKey("none");
+		byte[] msgBytes = m.getMessageBytes();
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, ServerPort);
 		
 		socket.send(packet);
