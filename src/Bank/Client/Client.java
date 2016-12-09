@@ -26,6 +26,7 @@ import java.util.Scanner;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -48,20 +49,21 @@ public class Client {
 	private static SecureRandom randomizer = new SecureRandom();
 	
 	private static BigInteger b = new BigInteger(10, randomizer);
-	private static String sessionKey = "1234567891234567";
+	private static String sessionKey;
 	
 	private static AES cbc;
 	
 	public static void main(String[] args) throws Exception {
 		
+		addr = InetAddress.getByName(ServerHost);
+		socket = new DatagramSocket();
+		requestPort();
+		
 		generateDHPublicValues();
 		generateDHSecretKey();
 		
 		cbc = new AES(sessionKey);
-		addr = InetAddress.getByName(ServerHost);
-		socket = new DatagramSocket();
 		
-		requestPort();
 		System.out.println("Client started running...");
 		
 		in = new Scanner(System.in);
@@ -94,9 +96,10 @@ public class Client {
 		in.close();
 	}
 	
-	private static void requestPort() throws IOException {
+	private static void requestPort() throws IOException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
 		Message m = new Message();
-		byte[] msgBytes = m.getMessage().getBytes();
+		//m.setKey(sessionKey);
+		byte[] msgBytes = m.getMessage().getBytes(); //ALTERADO
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, ServerPort);
 		
 		socket.send(packet);
@@ -139,24 +142,22 @@ public class Client {
 	
 	private static void generateDHPublicValues() throws Exception{
 				
-		BigInteger p = new BigInteger(10, randomizer).abs();
-		BigInteger q = new BigInteger(10, randomizer).abs();
-		BigInteger yB = new BigInteger(10, randomizer).abs();
+		BigInteger p = new BigInteger(10, randomizer);
+		BigInteger q = new BigInteger(10, randomizer);
+		BigInteger yB = new BigInteger(10, randomizer);
 		
-		int bitLength = 1024; // 1024 bits
+		int bitLength = 512; // 1024 bits
 	    
 	    p = BigInteger.probablePrime(bitLength, randomizer);
-	    System.out.println("p: "+p);
+	    //System.out.println("p: "+p.longValue());
 	    
 	    q = BigInteger.probablePrime(bitLength, randomizer);
-	    System.out.println("q: "+q);
+	    //System.out.println("q: "+q.longValue());
 	    
 	    b = BigInteger.probablePrime(bitLength, randomizer);
 	    
 	    yB = p.modPow(b, q);
-	    System.out.println("yB: "+yB);
-	    System.out.println("yB size COUNT= "+yB.bitCount());
-		System.out.println("yB size LENGTH= "+ yB.bitLength());
+	    //System.out.println("yB: "+yB.longValue());
 	    
 	    byte[] messages = p.toByteArray();
 	    sendDHMessage(messages);
@@ -170,22 +171,21 @@ public class Client {
 	}
 	
 	
-	private static List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
+	/*private static List<byte[]> computeDHMessage(BigInteger n) throws DataSizeException{
 		byte[] nBytes = n.toByteArray();
 		byte[] code = new byte[120];
 		List<byte[]>  res = new ArrayList<byte[]>();
 		
-		for(int i=nBytes.length; i>120; i-=120){
+		//for(int i=nBytes.length; i>120; i-=120){
 			code = Arrays.copyOfRange(nBytes, 0, nBytes.length);
 			res.add(code);
-		}
+		//}
 				
 		return res;
-	}
+	}*/
 	
 	private static void sendDHMessage(byte[] byteList) throws IOException, DHMessageException{
 		
-		System.out.println(byteList.length);
 		DatagramPacket keysPacket = new DatagramPacket(byteList, byteList.length, addr, port);
 		socket.send(keysPacket);
 	}
@@ -198,7 +198,7 @@ public class Client {
 		DatagramPacket keysPacket = new DatagramPacket(keys, keys.length); 
 		socket.receive(keysPacket);
 		
-		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getData().length));
+		aux.write(Arrays.copyOfRange(keysPacket.getData(), 0, keysPacket.getLength()));
 		
 		return new BigInteger(aux.toByteArray());
 	}
@@ -206,29 +206,37 @@ public class Client {
 	private static void generateDHSecretKey() throws IOException{
 		
 		BigInteger q = collectDHValues();
-		System.out.println("q recebido:" +q);
+		//System.out.println("q recebido:" +q.longValue());
 		
 		BigInteger yA = collectDHValues();
+		//System.out.println("yA recebido:" +yA.longValue());
 		
-		sessionKey = new String(""+yA.modPow(b, q));
+		BigInteger resultado = yA.modPow(b, q);
 		
-		System.out.println(sessionKey);
+		//System.out.println("Chave Secreta: "+ resultado.longValue());
+		
+		sessionKey = new String(""+resultado);
+		
+		System.out.println("session key: "+sessionKey);
 		
 	}
 	
 	private static void associateCommand(String input) throws Exception {
 		Message m = new Message(input, phone_number);
+		m.setKey(sessionKey);
 		
 		System.out.println("input: "+input.length());
 		//String info[] = input.split(" ");
 		
-		byte[] msgBytes = cbc.encrypt(m.getMessage());
+		byte[] msgBytes = cbc.encrypt(new String(m.getMessageBytes()));
 		System.out.println("len: "+msgBytes.length);
 		
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		socket.send(packet);
 		
-		if(!waitAck()){
+		Long l = Long.parseLong(new String(m.getMessageBytes()).split("\\|\\|")[1])-2;
+		
+		if(!waitAck(l)){
 			System.out.println("Operation not completed");
 			return;
 		}
@@ -247,14 +255,16 @@ public class Client {
 		String info[] = input.split(" ");
 	
 		Message m = new Message(info[0], info[1], phone_number);
+		m.setKey(sessionKey);
 		
-		byte[] msgBytes = m.getMessage().getBytes();
-
+		Long l = Long.parseLong(new String(m.getMessageBytes()).split("\\|\\|")[1])-2;
+		
+		byte[] msgBytes = cbc.encrypt(new String(m.getMessageBytes()));
 		DatagramPacket packet = new DatagramPacket(msgBytes,msgBytes.length, addr, port);
 		
 		socket.send(packet);
 		
-		if(!waitAck()){
+		if(!waitAck(l)){
 			System.out.println("Operation not completed.");
 			return;
 		}
@@ -268,7 +278,7 @@ public class Client {
 		System.out.println("Transaction completed with success");
 	}
 	
-	private static boolean waitAck() throws IOException {
+	private static boolean waitAck(Long l) throws IOException, InvalidKeyException, NoSuchAlgorithmException {
 
 		boolean ackReceived = false;
 		boolean timeout = false;
@@ -285,11 +295,18 @@ public class Client {
 				//socket.setSoTimeout(0);
 
 				String content[] = new String(ackpacket.getData()).split("\\|\\|");
+				/*if(!validateDigest(ackpacket.getData())){
+					return false;
+				}*/
 				
 				if(content[0].equals("ack")){
+					String client_info = "";
+					if(Long.parseLong(content[1]) != l){
+						client_info = "Operation not authorized";
+						return false;
+					}
 					System.out.println("Acknowlegde received");
 					ackReceived = true;
-					String client_info = "";
 					if(content[2].equals("confirmed")){
 						//socket.close();
 						return true;
@@ -316,7 +333,7 @@ public class Client {
 		return false;
 	}
 	
-	private static boolean confirmIdentity() throws IOException {
+	private static boolean confirmIdentity() throws IOException, NoSuchAlgorithmException, NumberFormatException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException {
 		
 		byte[] codes = new byte[120];
 		DatagramPacket codePacket = new DatagramPacket(codes, codes.length);
@@ -337,23 +354,52 @@ public class Client {
 		if(!content[0].equals("codes")){
 			return false;
 		}
+		/*if(!validateDigest(codePacket.getData())){
+			return false;
+		}*/		
 		
 		System.out.println(content[2]);
 		Scanner in2 = new Scanner(System.in);
 		String input = in2.nextLine();
 		char[] code = input.toCharArray();
 		Message m = new Message(code);
+		m.setKey(sessionKey);
+		
 		in = in2;
-		byte[] answer = m.getMessage().getBytes();
+		
+		byte[] answer = cbc.encrypt(new String(m.getMessageBytes()));
+		
 		DatagramPacket answerPacket = new DatagramPacket(answer, answer.length, addr, port);
 		socket.send(answerPacket);
-				
-		if(!waitAck()){
+		
+		Long l = Long.parseLong(new String(m.getMessageBytes()).split("\\|\\|")[1])-2;
+		
+		if(!waitAck(l)){
 			System.out.println("Operation not completed.");
 			return false;
 		}
 		
 		return true;
+	}
+	
+	private static boolean validateDigest(byte[] msg) throws NoSuchAlgorithmException, InvalidKeyException{
+		int index = new String(msg).lastIndexOf('|');
+		byte[] original = Arrays.copyOfRange(msg, index, msg.length);
+		byte[] received = calculateDigest(new String(msg).substring(0, index));
+		if(Arrays.equals(original, received)){
+			return true;
+		}
+		return false;
+	}
+	
+	private static byte[] calculateDigest(String msg) throws NoSuchAlgorithmException, InvalidKeyException{
+		SecretKeySpec keySpec = new SecretKeySpec(sessionKey.getBytes(),"HmacSHA256");
+		Mac m = Mac.getInstance("HmacSHA256");
+		m.init(keySpec);
+		byte[] hash = m.doFinal(msg.getBytes());
+		byte[] small = new byte[8];
+		small = Arrays.copyOfRange(hash, 0, 8);
+		return small;
 	}
 	
 }
