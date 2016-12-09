@@ -201,10 +201,13 @@ class ClientServiceThread extends Thread{
 			byte[] buffer = new byte[120];
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		
-			socket.setSoTimeout(0);
 			while(true){
+				socket.setSoTimeout(0);
+				collectIV();
+				socket.setSoTimeout(3000);
 				socket.receive(packet);
-				step1(packet);/*
+				step1(packet);
+				/*
 				socket.receive(packet);
 				System.out.println(packet.getData().length);
 				byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
@@ -222,6 +225,15 @@ class ClientServiceThread extends Thread{
 		}
 	}
 	
+	private void collectIV() throws IOException {
+		byte[] buffer = new byte[120];
+		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+		socket.receive(packet);
+		byte[] iv = (Arrays.copyOf(packet.getData(), packet.getLength()));
+		System.out.write(iv);
+		cbc.setIV(iv);	
+	}
+
 	private void generateDHValues() throws Exception{
 		
 		BigInteger p = collectDHValues();
@@ -250,7 +262,7 @@ class ClientServiceThread extends Thread{
 	    sessionKey = new String(""+resultado);
 	    sessionKey = sessionKey.substring(0, 16);
 	    
-	    //System.out.println("Chave secreta: "+ resultado.longValue());
+	    System.out.println("Chave secreta: "+ resultado.longValue());
 	    
 	    System.out.println("session key: "+sessionKey);
 	}
@@ -524,28 +536,13 @@ class ClientServiceThread extends Thread{
 		//try and see if it is a iv_share message
 		byte[] msgBytes = new byte[120];
 		msgBytes = Arrays.copyOfRange(packet.getData(), 0, packet.getLength());//		packet.getData();
-		
-		String msg = new String(msgBytes);
-		
-		msg = msg.trim();
-		
-		String[] info = msg.split("\\|\\|");
-		
-		if (info[0].equals("iv_share")){
-			System.out.println("GOT IV");
-			//validateDigest(msgBytes);
-			byte[] iv_Bytes = info[2].getBytes();
-			System.out.write(iv_Bytes);
-			cbc.setIV(iv_Bytes);
-			sendAck(packet.getAddress(), packet.getPort() , Confirmation_Ack, Long.parseLong(info[1])-2);
-		}
-		else {
-			System.out.println("Decrypting Received Message");
-			byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
-			String message = new String(received);
-			System.out.println("Message = " + message);
-			parseMessage(message, packet);
-		}			
-	}
+					
+		System.out.println("Decrypting Received Message");
+		byte[] received = cbc.decrypt(Arrays.copyOf(packet.getData(), packet.getLength()));
+		String message = new String(received);
+		System.out.println("Message = " + message);
+		parseMessage(message, packet);
+	}			
+	
 
 }

@@ -189,7 +189,7 @@ public class Client {
 		
 		BigInteger resultado = yA.modPow(b, q);
 		
-		//System.out.println("Chave Secreta: "+ resultado.longValue());
+		System.out.println("Chave Secreta: "+ resultado.longValue());
 		
 		sessionKey = new String(""+resultado);
 		sessionKey = sessionKey.substring(0, 16);
@@ -218,7 +218,8 @@ public class Client {
 			return;
 		}
 		System.out.println("IV SHARED");
-		
+		System.out.write(cbc.getIV());
+		System.out.println();
 		Long l = m.getID() - 2;
 	
 		byte[] cypherBytes = cbc.encrypt(new String(m.getMessageBytes()));
@@ -262,15 +263,11 @@ public class Client {
 	private static boolean generateIV() throws InvalidKeyException, NumberFormatException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, InvalidAlgorithmParameterException, IbanException, AmountException, DataSizeException, IOException{
 		
 		cbc.generateIV();
-		Message m = new Message(cbc.getIV(), true);
-		m.setKey(sessionKey); // digest stuff
 		
-		DatagramPacket p = new DatagramPacket(m.getMessageBytes(), m.getMessageBytes().length, addr, port);
+		DatagramPacket p = new DatagramPacket( cbc.getIV(), cbc.getIV().length, addr, port );
 		socket.send(p);
 		
-		System.out.println("IV ID "+m.getID());
-		boolean t =  waitAck(m.getID()-2);
-		return t;
+		return true;
 
 	}
 	
